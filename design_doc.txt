@@ -1,0 +1,33 @@
+EFM Design Doc
+
+== Pseudo Code ==
+
+CPU:
+  for metabolite m in Metabolites
+    bucket sort Pathways into I, O, N in relation to m
+      (requires two sorting passes: one for I, not I. One for O or N)
+    copy I, O, N to GPU
+
+    for each batch
+      GPU: kernel
+        create set number of combos for a pathway,
+        check their dependence,
+        store independent combos in thread's answer chunk of global memory
+
+      CPU: move independent combos from each thread into Final answer
+           section of global memory.
+
+  CPU: post process final answers // I forget exactly what this entails
+
+
+== Data/Memory ==
+
+GLOBAL memory contains
+
+I, O, N  // the input, output, and nonparticipating pathways.
+NewIndp  // memory subdivided with a chunk for each thread to write its
+         //   newly found independent pathways (represented by a pair of indices).
+Final    // a growing collection of final answer pathways created by copying
+         //   over pathways from NewIndp after each batch iteration.
+
+We will probably tile I, O, and N into shared memory for dependency checking.
