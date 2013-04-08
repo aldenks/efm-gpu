@@ -1,0 +1,9 @@
+rm gEFM
+rm Output.txt
+rm core*.*
+clear
+/opt/shared/cudatoolkit/4.2.9/cuda/bin/nvcc -g -G *.cu -o gEFM
+read -p "Compiled. Press Enter To Continue . . ."
+clear
+bsub -q short_gpu -Ip -R "rusage [n_gpu_jobs=1 ]" ./gEFM ecoli-irrev.txt
+rm gEFM
