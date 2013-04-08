@@ -3,11 +3,19 @@ EFM Design Doc
 == Pseudo Code ==
 
 CPU:
-  for metabolite m in Metabolites
-    bucket sort Pathways into I, O, N in relation to m
+  Set up network
+  while there are unbalanced internal metabolites
+    Select next metabolite to remove{
+       GPU: Find the count of inputs, outputs for each metabolites in every pathway
+	 each kernel thread will find the product of input and outputs for a
+	 single metabolite and store that in an array.
+	 copy that back to CPU. Put in MAX_INT sentinel if metabolite is
+         already processed.
+       CPU: Select the metabolite with min product of inputs and outputs
+    }
+    CPU: bucket sort Pathways into I, O, N in relation to m
       (requires two sorting passes: one for I, not I. One for O or N)
     copy I, O, N to GPU
-
     for each batch
       GPU: kernel
         create set number of combos for a pathway,
@@ -31,3 +39,9 @@ Final    // a growing collection of final answer pathways created by copying
          //   over pathways from NewIndp after each batch iteration.
 
 We will probably tile I, O, and N into shared memory for dependency checking.
+
+Version 1.0:
+------------
+-floats for metabolite coefficients
+-1e-10 for zero
+-

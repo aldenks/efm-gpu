@@ -77,11 +77,17 @@ private:
       }
    }
 public:
+   //Stoichiometric matrix of the network containing metabolite coefficients
    vector<vector<float> > s;
+   //Names of metabolites in the network
    vector<string> metabolites;
+   //Names of reactions in the network
    vector<string> reactions;
+   //A boolean flag for metabolites. If true the metabolite is external.
    vector<bool> external;
+   //A boolean flag for reactions. If true the reaction was reversible.
    vector<bool> reversible;
+   //A list of reversible reaction pairs. Two consecutive elements represent a reversible reaction
    vector<int> reversiblePairs;
 
    Network() {

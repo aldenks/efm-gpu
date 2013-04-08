@@ -6,12 +6,21 @@ Network network;
 //Device data for binary vector
 BinaryVector* d_binaryVectors;
 //Device data for metabolite coefficients
+//2D array. Each row represents to the coefficients for each metabolite in a pathway
 float* d_metaboliteCoefficients;
 //Device data for combinations
 int* d_combinationBins;
+//Device flags for balanced metabolites. A true means the metabolite is balanced
+bool* d_balancedMetabolies;
 
 //Host data for binary vector
 BinaryVector* h_binaryVectors;
+//Number of remaining metabolites to be balanced
+int remainingMetabolites;
+//Number of metbaolites
+int metaboliteCount;
+//Number of pathways
+int pathwayCount;
 
 bool allocateMemory() {
    //Allocating memory for host binary vectors
@@ -43,6 +52,7 @@ bool allocateMemory() {
 }
 
 //Generates bit packed representation of reactions
+
 BinaryVector packReaction(int reaction) {
    return 1 << reaction;
 }
