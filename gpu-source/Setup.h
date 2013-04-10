@@ -26,12 +26,19 @@ extern float* d_metaboliteCoefficients;
 extern int* d_combinationBins;
 //Device flags for balanced metabolites. A true means the metabolite is balanced
 extern bool* d_balancedMetabolites;
+//Device data for count of input pathways for each metabolite
+extern int* d_metaboliteInputPathwayCounts;
+//Device data for count of output pathways for each metabolite
+extern int* d_metaboliteOutputPathwayCounts;
 
-//Host data for binary vector
-extern BinaryVector* h_binaryVectors;
+//Host data for count of input pathways for each metabolite
+extern int* h_metaboliteInputPathwayCounts;
+//Host data for count of output pathways for each metabolite
+extern int* h_metaboliteOutputPathwayCounts;
+
 //Number of remaining metabolites to be balanced
 extern int remainingMetabolites;
-//Number of metbaolites
+//Number of metabolites
 extern int metaboliteCount;
 //Number of current pathways
 extern int pathwayCount;
