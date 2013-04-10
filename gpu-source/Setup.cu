@@ -11,7 +11,7 @@ float* d_metaboliteCoefficients;
 //Device data for combinations
 int* d_combinationBins;
 //Device flags for balanced metabolites. A true means the metabolite is balanced
-bool* d_balancedMetabolies;
+bool* d_balancedMetabolites;
 
 //Host data for binary vector
 BinaryVector* h_binaryVectors;
@@ -48,6 +48,16 @@ bool allocateMemory() {
       fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
       return false;
    }
+
+   //Allocating memory for device metabolite balanced state
+   d_balancedMetabolites = NULL;
+   error = cudaMalloc((void**) &d_balancedMetabolites, network.metabolites.size() * sizeof(bool));
+   if (error != cudaSuccess) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_balancedMetabolites\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
+      return false;
+   }
+
    return true;
 }
 
@@ -78,6 +88,16 @@ bool setup() {
    cudaMemcpy(d_binaryVectors, h_binaryVectors, network.reactions.size() * sizeof (BinaryVector), cudaMemcpyHostToDevice);
    cudaMemcpy(d_metaboliteCoefficients, metCoeff, metCoeffSize, cudaMemcpyHostToDevice);
    free(metCoeff);
+
+   // initialize counts
+   // TODO Ehsan, are these right?
+   pathwayCount = network.reactions.size();
+   metaboliteCount = network.metabolites.size();
+   remainingMetabolites = metaboliteCount;
+
+   // intialize all metabolites balanced state to false
+   cudaMemset(d_balancedMetabolites, 0, metaboliteCount * sizeof(bool));
+
    return true;
 }
 

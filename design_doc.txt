@@ -7,10 +7,7 @@ CPU:
   while there are unbalanced internal metabolites
     Select next metabolite to remove{
        GPU: Find the count of inputs, outputs for each metabolites in every pathway
-	 each kernel thread will find the product of input and outputs for a
-	 single metabolite and store that in an array.
-	 copy that back to CPU. Put in MAX_INT sentinel if metabolite is
-         already processed.
+         Put in MAX_INT sentinel if metabolite is already processed.
        CPU: Select the metabolite with min product of inputs and outputs
     }
     CPU: bucket sort Pathways into I, O, N in relation to m

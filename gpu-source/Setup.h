@@ -25,7 +25,7 @@ extern float* d_metaboliteCoefficients;
 //Device data for combinations
 extern int* d_combinationBins;
 //Device flags for balanced metabolites. A true means the metabolite is balanced
-extern bool* d_balancedMetabolies;
+extern bool* d_balancedMetabolites;
 
 //Host data for binary vector
 extern BinaryVector* h_binaryVectors;
