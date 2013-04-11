@@ -1,5 +1,7 @@
 #include "SelectMetabolite.h"
 
+#define BALANCED_MARKER -1
+
 __global__
 void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathwayCount, int metaboliteCount, bool* balancedMetabolites, int* inputCounts, int* outputCounts) {
 
@@ -23,8 +25,8 @@ void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathw
    outputCounts[m] = outputCount;
    // insert sentinel value if the metabolite is already balanced
    if (balancedMetabolites[m]) {
-      inputCounts[m] = INT_MAX;
-      outputCounts[m] = INT_MAX;
+      inputCounts[m]  = BALANCED_MARKER;
+      outputCounts[m] = BALANCED_MARKER;
    }
 }
 
@@ -41,8 +43,9 @@ int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayCount, int met
 
    // select the metabolite with the minimum product of inputs and outputs
    int min_i;
-   int min_product = INT_MAX;
+   long min_product = LONG_MAX;
    for (int i = 0; i < metaboliteCount; i++) {
+      if (h_inputCounts[i] == BALANCED_MARKER) continue;
       int product = h_inputCounts[i] * h_inputCounts[i];
       if (product < min_product) {
          min_i = i;
