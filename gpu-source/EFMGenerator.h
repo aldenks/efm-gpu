@@ -2,6 +2,7 @@
 #define	EFMGENERATOR_H
 
 #include "Setup.h"
+#include "Helpers.h"
 #include "SelectMetabolite.h"
 
 //Generates EFMs

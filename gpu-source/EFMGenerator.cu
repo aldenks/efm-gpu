@@ -4,7 +4,6 @@
 
 void generateEFMs() {
 
-   // allocate memory to hold input/output counts
    while (remainingMetabolites > 0) {
       // find metabolite to remove
       int metabolite = getNextMetabolite(d_metaboliteCoefficients, pathwayCount, metaboliteCount,
@@ -16,6 +15,7 @@ void generateEFMs() {
       //Copy the bit vectors from cpu to gpu
       //Setup bins
       //Call kernel to generate combinations
+      markMetaboliteBalanced(metabolite, d_balancedMetabolites);
       remainingMetabolites--;
    }
 }
