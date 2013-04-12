@@ -10,7 +10,7 @@ CPU:
          Put in MAX_INT sentinel if metabolite is already processed.
        CPU: Select the metabolite with min product of inputs and outputs
     }
-    CPU: bucket sort Pathways into I, O, N in relation to m
+    GPU: bucket sort Pathways into I, O, N in relation to m
       (requires two sorting passes: one for I, not I. One for O or N)
     copy I, O, N to GPU
     for each batch
