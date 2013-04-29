@@ -12,6 +12,9 @@ void generateEFMs() {
 
       //Copy the bit vectors from gpu to cpu
       //Sort the bit vectors for inputs outputs and non-participating pathways
+      sortInputsOutputs(d_metaboliteCoefficients, pathwayCount, d_binaryVectors,
+			metaboliteCount, h_metaboliteInputPathwayCounts[metabolite], 
+			h_metaboliteOutputPathwayCounts[metabolite], metabolite);
       //Copy the bit vectors from cpu to gpu
       //Setup bins
       //Call kernel to generate combinations

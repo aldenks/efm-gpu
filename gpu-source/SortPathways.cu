@@ -1,64 +1,109 @@
+#include "SortPathways.h"
 
 __global__
-void sortPathways(int *reactions, float *metaboliteCoefficients, int sorting,
+void sortInputPathways(BinaryVector *reactions, float *metaboliteCoefficients,
 		  int startIndex, int numToSort, int numReactions, 
 		  int numberOfMetabolites, int metaboliteToRemove){
 
   int tid = blockIdx.x + blockDim.x + threadIdx.x;
 
-  if(tid < numToSort){
-    // Step 1) Each thread searches for an input
-    
-    //Hope these two go into registers
-    int counter = 0;
-    int index_of_input = -1;
+  if ( tid == 0 ) {
+    int start = startIndex;
+    int end = startIndex + numToSort;
 
-    //for each pathway
-    for(int i = startIndex; i < numReactions; ++i){
-      //NOTE: how can we generalize sort w/o divergence
-      //REMEMBER: logical-and is slow due to short-circuiting!
-      //IDEA: just make 2 kernels? one input, other output
-
-      // if found what I am looking for, counter++;
-      // NOTE: Inputs are determined by negative coefficents, 
-      //       outputs are positive
-
-      if(sorting < 0) { //Search for inputs
-	if(metaboliteCoefficients[i * numberOfMetabolites + 
-				  metaboliteToRemove] < 0) {
-	  counter++;
+    //While the pointers do not overlap
+    while(start < end){
+      bool is_input_1 = metaboliteCoefficients[start * numberOfMetabolites + 
+					       metaboliteToRemove] < NEG_ZERO;
+      bool is_input_2 = metaboliteCoefficients[end * numberOfMetabolites + 
+					       metaboliteToRemove] < NEG_ZERO;
+      if(is_input_1) {
+	//Skip this one
+	start++;
+      } else if(is_input_2){
+	//swap the two reactions
+	BinaryVector temp = reactions[end];
+	reactions[end] = reactions[start];
+	reactions[start] = temp;
+	
+	//swap the two metaboliteCoefficients for pathways
+	float tempCoefficient;
+	for(int i = 0; i < numberOfMetabolites; ++i){
+	  tempCoefficient = metaboliteCoefficients[end * numberOfMetabolites + i];
+	  metaboliteCoefficients[end * numberOfMetabolites + i] = 
+	    metaboliteCoefficients[start * numberOfMetabolites + i];
+	  metaboliteCoefficients[start * numberOfMetabolites + i] = tempCoefficient;
 	}
-      } else { //Search for outputs (Assuming sorting != 0)
-	if(metaboliteCoefficients[i * numberOfMetabolites + 
-				  metaboliteToRemove] > 0) {
-	  counter++;
-	}
-      }
-      
-      //if (counter - 1) = (blockIdx.x * blockDim.x + tid)
-      if( (counter-1) == tid ){
-	//  then index_of_input = current_index      
-	index_of_input = i;
+	//move forward
+	start++;
+	end++;
+      } else {
+	//Not an input, don't care
+	end++;
       }
     }
-  // end for
+  }
+}
 
-  // syncthreads to prevent writing while other threads are reading
-    __syncthreads();
+__global__
+void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients,
+		  int startIndex, int numToSort, int numReactions, 
+		  int numberOfMetabolites, int metaboliteToRemove){
 
-  // swap (blockIdx.x * blockDim.x + tid) slot with index_of_input
-  // NOTE: will need to copy data to LOCAL memory
-  // QUESTION: how do we know we will NOT have a write/read conflict 
-  //           between threads?
-  //           i.e.: thread 0 is swapping with index 3 while
-  //                 thread 3 is swapping with index 7
-  // also swap metabolite coefficients
-  // NOTE: each row is one pathway
+  int tid = blockIdx.x + blockDim.x + threadIdx.x;
+
+  if ( tid == 0 ) {
+    int start = startIndex;
+    int end = startIndex + numToSort;
+
+    //While the pointers do not overlap
+    while(start < end){
+      bool is_output_1 = metaboliteCoefficients[start * numberOfMetabolites + 
+					       metaboliteToRemove] > ZERO;
+      bool is_output_2 = metaboliteCoefficients[end * numberOfMetabolites + 
+					       metaboliteToRemove] > ZERO;
+      if(is_output_1) {
+	//Skip this one
+	start++;
+      }	if(is_output_2){
+	//swap the two reactions
+	BinaryVector temp = reactions[end];
+	reactions[end] = reactions[start];
+	reactions[start] = temp;
+	
+	//swap the two metaboliteCoefficients for pathways
+	float tempCoefficient;
+	for(int i = 0; i < numberOfMetabolites; ++i){
+	  tempCoefficient = metaboliteCoefficients[end * numberOfMetabolites + i];
+	  metaboliteCoefficients[end * numberOfMetabolites + i] = 
+	    metaboliteCoefficients[start * numberOfMetabolites + i];
+	  metaboliteCoefficients[start * numberOfMetabolites + i] = tempCoefficient;
+	}
+	//move forward
+	start++;
+	end++;
+      } else {
+	//Not an output, don't care
+	end++;
+      }
+    }
   }
 }
 
 void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts, 
-		       int *reactions, int metaboliteCount, int numInputs, 
+		       BinaryVector *d_reactions, int metaboliteCount, int numInputs, 
 		       int numOutputs, int metaboliteToRemove){
   //call the kernel on inputs and outputs
+  int numBlocks = (pathwayCounts / MAX_THREADS_PER_BLOCK ) + 1;
+  sortInputPathways <<< numBlocks, MAX_THREADS_PER_BLOCK >>> 
+    (d_reactions, d_metaboliteCoefficients, 
+     0, pathwayCounts, pathwayCounts,
+     metaboliteCount, metaboliteToRemove);
+
+  numBlocks = ((pathwayCounts - numInputs) / MAX_THREADS_PER_BLOCK ) + 1;
+  sortOutputPathways <<< numBlocks, MAX_THREADS_PER_BLOCK >>> 
+    (d_reactions, d_metaboliteCoefficients, 
+     numInputs, pathwayCounts-numInputs, pathwayCounts,
+     metaboliteCount, metaboliteToRemove);
+
 }
