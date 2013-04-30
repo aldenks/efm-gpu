@@ -1,0 +1,11 @@
+Alden
+  setup bins
+  set batchSize in EFMGenerator
+
+Ehsan
+  circular buffer abstraction macros
+  updating coefficients and bin vectors
+
+Diogenes
+  Dependecy (with params for batch size, batch iteration)
+  update sorting & dependecy once circular buffs are implemented
