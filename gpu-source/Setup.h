@@ -11,6 +11,9 @@
 //Maximum number of pathways that can be stored in the memory
 #define MAX_PATHWAYS 1000000
 
+// number of combinations tested per batch
+extern int batchSize;
+
 //Binary Vector Datatype
 typedef unsigned long BinaryVector;
 
@@ -42,6 +45,17 @@ extern int remainingMetabolites;
 extern int metaboliteCount;
 //Number of current pathways
 extern int pathwayCount;
+
+// Bins for each thread's newly found independent pathways
+//  bins are organized in column major for memory coalescing
+#define BIN_MAX_ENTRIES 13107200 // 50mb of 4 byte ints
+extern int *d_newPathwayBins;
+extern int *d_newPathwayBinCounts;
+extern int *h_newPathwayBinCounts;
+// Indices into the binaryVectors & metaboliteCoefficients for
+//  threads to begin writing out to
+extern int *d_newPathwayWriteIndices;
+extern int *h_newPathwayWriteIndices;
 
 //Initializes the network and gpu memory
 //Ret: returns true if memory was succesfully allocated, false otherwise
