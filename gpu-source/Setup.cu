@@ -5,6 +5,8 @@ Network network;
 
 //Device data for binary vector
 BinaryVector* d_binaryVectors;
+// number of combinations tested per batch
+int batchSize;
 //Device data for metabolite coefficients
 //2D array. Each row represents to the coefficients for each metabolite in a pathway
 float* d_metaboliteCoefficients;
@@ -28,6 +30,16 @@ int remainingMetabolites;
 int metaboliteCount;
 //Number of current pathways
 int pathwayCount;
+
+// Bins for each thread's newly found independent pathways
+//  bins are organized in column major for memory coalescing
+int *d_newPathwayBins;
+int *d_newPathwayBinCounts;
+int *h_newPathwayBinCounts;
+// Indices into the binaryVectors & metaboliteCoefficients for
+//  threads to begin writing out to
+int *d_newPathwayWriteIndices;
+int *h_newPathwayWriteIndices;
 
 bool allocateMemory() {
    cudaError error;
@@ -88,6 +100,47 @@ bool allocateMemory() {
    h_metaboliteOutputPathwayCounts = (int*) malloc(metaboliteCount * sizeof (int));
    if (!h_metaboliteInputPathwayCounts) {
       fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_metaboliteOutputPathwayCounts\n");
+      return false;
+   }
+
+   // Bins
+   d_newPathwayBins = NULL;
+   error = cudaMalloc((void**) &d_newPathwayBins, BIN_MAX_ENTRIES * sizeof (int));
+   if (error != cudaSuccess) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayBins\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
+      return false;
+   }
+
+   // Bin counts. metaboliteCount slots will often be more than needed, but could be the max
+   d_newPathwayBinCounts = NULL;
+   error = cudaMalloc((void**) &d_newPathwayBinCounts, metaboliteCount * sizeof (int));
+   if (error != cudaSuccess) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayBinCounts\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
+      return false;
+   }
+
+   // Host Bin Counts
+   h_newPathwayBinCounts = (int*) malloc(metaboliteCount * sizeof (int));
+   if (!h_newPathwayBinCounts) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_newPathwayBinCounts\n");
+      return false;
+   }
+
+   // New pathway write indices
+   d_newPathwayWriteIndices = NULL;
+   error = cudaMalloc((void**) &d_newPathwayWriteIndices, metaboliteCount * sizeof (int));
+   if (error != cudaSuccess) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayWriteIndices\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
+      return false;
+   }
+
+   // Host Bin Counts
+   h_newPathwayWriteIndices = (int*) malloc(metaboliteCount * sizeof (int));
+   if (!h_newPathwayWriteIndices) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_newPathwayWriteIndices\n");
       return false;
    }
 
@@ -178,5 +231,20 @@ void freeResources() {
    }
    if (h_metaboliteOutputPathwayCounts) {
       free(h_metaboliteOutputPathwayCounts);
+   }
+   if (d_newPathwayBins) {
+      cudaFree(d_newPathwayBins);
+   }
+   if (d_newPathwayBinCounts) {
+      cudaFree(d_newPathwayBinCounts);
+   }
+   if (h_newPathwayBinCounts) {
+      free(h_newPathwayBinCounts);
+   }
+   if (d_newPathwayWriteIndices) {
+      cudaFree(d_newPathwayWriteIndices);
+   }
+   if (h_newPathwayWriteIndices) {
+      free(h_newPathwayWriteIndices);
    }
 }

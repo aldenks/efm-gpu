@@ -1,6 +1,6 @@
 Alden
-  setup bins
-  set batchSize in EFMGenerator
+  X setup bins
+  X set batchSize in EFMGenerator
 
 Ehsan
   circular buffer abstraction macros
