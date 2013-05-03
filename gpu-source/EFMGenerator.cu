@@ -19,7 +19,12 @@ void generateEFMs() {
                         h_metaboliteInputPathwayCounts[metabolite] : 1;
       batchSize = BIN_MAX_ENTRIES / divisor; // int division
       //Call kernel to generate combinations
-
+      int num_batches = (h_metaboliteOutputPathwayCounts[metabolite] / pathwayCount) + 1;
+      for (int i = 0; i < num_batches; ++i){
+	dependencyCheck(h_metaboliteInputPathwayCounts[metabolite], 
+			h_metaboliteOutputPathwayCounts[metabolite], i);
+      }
+      
       markMetaboliteBalanced(metabolite, d_balancedMetabolites);
       remainingMetabolites--;
    }

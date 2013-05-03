@@ -90,6 +90,47 @@ void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients,
   }
 }
 
+__global__ 
+void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, 
+		     int num_inputs, int output_start, int non_part_start,
+		     int pathwayCounts){
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  int count = 0;
+  if(tid < num_inputs){
+    BinaryVector input = reactions[tid];
+    BinaryVector output, combo, pathway;
+    bool is_unique_and_independent = false;
+    for(int i = 0; i < batch_size; ++i){
+      output = reactions[output_start + i];
+      combo = input | output;
+      for (int j = 0; is_unique_and_independent && j < pathwayCounts; ++j){
+	if(j == tid) continue; //skip this input
+	if(j == output_start + i) continue; //skip this output
+	pathway = reactions[j];
+	if(pathway == combo){
+	  //TODO: how can we prevent duplicates?
+	  is_unique_and_independent = false;
+	  break;
+	}
+	is_unique_and_independent = ((combo & pathway) != pathway);
+      }
+
+      if(is_unique_and_independent){
+	bins[batch_size * (i+1) + tid] = i;
+	count++;
+      } else {
+	bins[batch_size * (i+1) + tid] = -1;
+      }
+    }
+
+    //Assumes first item is 0 to start
+    if(output_start == num_inputs)
+      bins[tid] = 0;
+
+    bins[tid] += count;
+  }
+}
+
 void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts, 
 		       BinaryVector *d_reactions, int metaboliteCount, int numInputs, 
 		       int numOutputs, int metaboliteToRemove){
@@ -106,4 +147,13 @@ void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts,
      numInputs, pathwayCounts-numInputs, pathwayCounts,
      metaboliteCount, metaboliteToRemove);
 
+}
+
+void dependencyCheck(int numInputs, int numOutputs, int batch_number){
+  int numBlocks = (numInputs / MAX_THREADS_PER_BLOCK ) + 1;
+  dependencyCheck <<< numBlocks , MAX_THREADS_PER_BLOCK >>> 
+    (d_binaryVectors, d_combinationBins, batchSize, numInputs,
+     numInputs + (batch_number * batchSize), //start of next batch of outputs
+     numOutputs, //start of non-participating
+     pathwayCount);
 }

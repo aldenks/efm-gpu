@@ -7,5 +7,5 @@ Ehsan
   updating coefficients and bin vectors
 
 Diogenes
-  Dependecy (with params for batch size, batch iteration)
+  X Dependecy (with params for batch size, batch iteration)
   update sorting & dependecy once circular buffs are implemented
