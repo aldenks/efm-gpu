@@ -1,6 +1,5 @@
 #include "Setup.h"
 #include "EFMGenerator.h"
-#include <conio.h>
 
 void execute(const char* file) {
    printf("Reading network file : %s\n", file);
@@ -30,6 +29,6 @@ int main(int argc, char** argv) {
    //}
    execute("E:\\Developer\\GPU\\EFM\\source\\ecoli-irrev-compressed.xls");
    printf("Press any key to exit . . .\n");
-   getch();
+   getchar();
    return (EXIT_SUCCESS);
 }
