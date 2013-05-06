@@ -125,6 +125,7 @@ bool allocateMemory() {
    h_newPathwayBinCounts = (int*) malloc(metaboliteCount * sizeof (int));
    if (!h_newPathwayBinCounts) {
       fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_newPathwayBinCounts\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
       return false;
    }
 

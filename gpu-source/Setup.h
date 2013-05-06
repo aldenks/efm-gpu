@@ -1,6 +1,7 @@
 #ifndef SETUP_H
 #define	SETUP_H
 
+#include <cuda.h>
 #include "Network.h"
 
 //Tolerence for positive zero
@@ -9,7 +10,9 @@
 #define NEG_ZERO -ZERO
 
 //Maximum number of pathways that can be stored in the memory
-#define MAX_PATHWAYS 1000000
+#define MAX_PATHWAYS 1048576
+#define CIRCULAR_BUFFER_MASK 0XFFFFF
+#define circularIndex(index) (index & CIRCULAR_BUFFER_MASK)
 
 // number of combinations tested per batch
 extern int batchSize;

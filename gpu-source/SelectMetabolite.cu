@@ -33,7 +33,7 @@ void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathw
 int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayCount, int metaboliteCount, bool* d_balancedMetabolites, int* d_inputCounts, int* d_outputCounts, int* h_inputCounts, int* h_outputCounts) {
 
    int threads_per_count_block = 256;
-   int blocks_per_grid = ceil(((double) metaboliteCount) / threads_per_count_block);
+   int blocks_per_grid = ceil(((float) metaboliteCount) / threads_per_count_block);
    computeMetaboliteInputOutputCounts << <blocks_per_grid, threads_per_count_block >> >
            (d_metaboliteCoefficients, pathwayCount, metaboliteCount, d_balancedMetabolites,
            d_inputCounts, d_outputCounts);
@@ -42,11 +42,14 @@ int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayCount, int met
    cudaMemcpy(h_outputCounts, d_outputCounts, count_mem_size, cudaMemcpyDeviceToHost);
 
    // select the metabolite with the minimum product of inputs and outputs
-   int min_i;
+   int min_i = -1;
    long min_product = LONG_MAX;
    for (int i = 0; i < metaboliteCount; i++) {
       if (h_inputCounts[i] == BALANCED_MARKER) continue;
-      int product = h_inputCounts[i] * h_inputCounts[i];
+      if(min_i == -1){
+         min_i = i;
+      }
+      int product = h_inputCounts[i] * h_outputCounts[i];
       if (product < min_product) {
          min_i = i;
          min_product = product;

@@ -1,0 +1,18 @@
+Reactions	26
+Reversible	0
+Metabolites	12
+Internal	12
+Serial	Metabolite Removed	Inputs	Outputs	Non-participating	Total Combinations	Combinations Generated	Combinations Stored	Total Pathways	Time
+1	SUCC	2	2	22	4	4	4	26	0
+2	MAL	2	3	21	6	6	6	27	0
+3	PEP	2	3	22	6	6	6	28	0
+4	OAA	5	3	20	15	15	10	30	0
+5	CO2	1	13	16	13	13	13	29	0
+6	ACoA	14	3	12	42	42	42	54	0
+7	CoASH	0	0	54	0	0	0	54	0
+8	PYR	33	8	13	264	264	96	109	0
+9	NAD	92	6	11	552	552	232	243	0
+10	NADH	0	0	243	0	0	0	243	0
+11	ADP	227	6	10	1362	1362	830	840	0
+12	ATP	0	0	840	0	0	0	840	0
+Total Time : 0
