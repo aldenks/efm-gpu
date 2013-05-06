@@ -48,6 +48,8 @@ extern int remainingMetabolites;
 extern int metaboliteCount;
 //Number of current pathways
 extern int pathwayCount;
+//Starting index of pathways in circular buffer
+extern int pathwayStartIndex;
 
 // Bins for each thread's newly found independent pathways
 //  bins are organized in column major for memory coalescing

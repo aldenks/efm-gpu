@@ -30,6 +30,8 @@ int remainingMetabolites;
 int metaboliteCount;
 //Number of current pathways
 int pathwayCount;
+//Starting index of pathways in circular buffer
+int pathwayStartIndex;
 
 // Bins for each thread's newly found independent pathways
 //  bins are organized in column major for memory coalescing
@@ -161,6 +163,9 @@ bool setup() {
    //Initialize pathway count. It is equal to the number of reaction in the network
    //after splitting the reversible reactions
    pathwayCount = network.reactions.size();
+
+   //Starting index of pathways in circular buffer
+   pathwayStartIndex = 0;
 
    //Initialize metabolite count. This is equal to the number of internal metabolites
    metaboliteCount = 0;
