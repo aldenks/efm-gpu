@@ -114,9 +114,9 @@ bool allocateMemory() {
       return false;
    }
 
-   // Bin counts. metaboliteCount slots will often be more than needed, but could be the max
+   // Bin counts. We will rarely need MAX_PATHWAYS bins, but it is the theoretical max
    d_newPathwayBinCounts = NULL;
-   error = cudaMalloc((void**) &d_newPathwayBinCounts, metaboliteCount * sizeof (int));
+   error = cudaMalloc((void**) &d_newPathwayBinCounts, MAX_PATHWAYS * sizeof (int));
    if (error != cudaSuccess) {
       fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayBinCounts\n");
       fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
@@ -124,7 +124,7 @@ bool allocateMemory() {
    }
 
    // Host Bin Counts
-   h_newPathwayBinCounts = (int*) malloc(metaboliteCount * sizeof (int));
+   h_newPathwayBinCounts = (int*) malloc(MAX_PATHWAYS * sizeof (int));
    if (!h_newPathwayBinCounts) {
       fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_newPathwayBinCounts\n");
       fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
@@ -133,7 +133,7 @@ bool allocateMemory() {
 
    // New pathway write indices
    d_newPathwayWriteIndices = NULL;
-   error = cudaMalloc((void**) &d_newPathwayWriteIndices, metaboliteCount * sizeof (int));
+   error = cudaMalloc((void**) &d_newPathwayWriteIndices, MAX_PATHWAYS * sizeof (int));
    if (error != cudaSuccess) {
       fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayWriteIndices\n");
       fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
@@ -141,7 +141,7 @@ bool allocateMemory() {
    }
 
    // Host Bin Counts
-   h_newPathwayWriteIndices = (int*) malloc(metaboliteCount * sizeof (int));
+   h_newPathwayWriteIndices = (int*) malloc(MAX_PATHWAYS * sizeof (int));
    if (!h_newPathwayWriteIndices) {
       fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_newPathwayWriteIndices\n");
       return false;
