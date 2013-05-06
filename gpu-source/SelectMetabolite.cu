@@ -27,7 +27,7 @@ void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathw
    outputCounts[m] = outputCount;
    // insert sentinel value if the metabolite is already balanced
    if (balancedMetabolites[m]) {
-      inputCounts[m]  = BALANCED_MARKER;
+      inputCounts[m] = BALANCED_MARKER;
       outputCounts[m] = BALANCED_MARKER;
    }
 }
@@ -37,8 +37,7 @@ int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayStartIndex, in
    int threads_per_count_block = 256;
    int blocks_per_grid = ceil(((float) metaboliteCount) / threads_per_count_block);
    computeMetaboliteInputOutputCounts << <blocks_per_grid, threads_per_count_block >> >
-           (d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount,
-           d_balancedMetabolites, d_inputCounts, d_outputCounts);
+           (d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount, d_balancedMetabolites, d_inputCounts, d_outputCounts);
    int count_mem_size = metaboliteCount * sizeof (int);
    cudaMemcpy(h_inputCounts, d_inputCounts, count_mem_size, cudaMemcpyDeviceToHost);
    cudaMemcpy(h_outputCounts, d_outputCounts, count_mem_size, cudaMemcpyDeviceToHost);
@@ -47,8 +46,10 @@ int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayStartIndex, in
    int min_i = -1;
    long min_product = LONG_MAX;
    for (int i = 0; i < metaboliteCount; i++) {
-      if (h_inputCounts[i] == BALANCED_MARKER) continue;
-      if(min_i == -1){
+      if (h_inputCounts[i] == BALANCED_MARKER) {
+         continue
+      };
+      if (min_i == -1) {
          min_i = i;
       }
       int product = h_inputCounts[i] * h_outputCounts[i];

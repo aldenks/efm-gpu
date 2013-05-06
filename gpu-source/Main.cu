@@ -27,8 +27,8 @@ int main(int argc, char** argv) {
    //} else {
    //   printf("Please specify the network file.\n");
    //}
-  //execute("E:\\Developer\\GPU\\EFM\\source\\ecoli-irrev-compressed.xls");
-execute("ecoli-irrev-compressed.xls");
+   //execute("E:\\Developer\\GPU\\EFM\\source\\ecoli-irrev-compressed.xls");
+   execute("ecoli-irrev-compressed.xls");
    printf("Press any key to exit . . .\n");
    getchar();
    return (EXIT_SUCCESS);
