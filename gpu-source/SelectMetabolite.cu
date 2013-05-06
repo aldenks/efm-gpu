@@ -1,9 +1,10 @@
 #include "SelectMetabolite.h"
+#include "Setup.h"
 
 #define BALANCED_MARKER -1
 
 __global__
-void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathwayCount, int metaboliteCount, bool* balancedMetabolites, int* inputCounts, int* outputCounts) {
+void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathwayStartIndex, int pathwayCount, int metaboliteCount, bool* balancedMetabolites, int* inputCounts, int* outputCounts) {
 
    int inputCount = 0;
    int outputCount = 0;
@@ -12,8 +13,9 @@ void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathw
       return;
    }
 
-   for (int p = 0; p < pathwayCount; p++) {
-      float coeff = metaboliteCoefficients[ p * metaboliteCount + m ];
+   int end_i = pathwayStartIndex + pathwayCount;
+   for (int p = pathwayStartIndex; p < end_i; p++) {
+      float coeff = metaboliteCoefficients[ circularIndex(p * metaboliteCount + m) ];
       if (coeff > 0) {
          outputCount++;
       } else if (coeff < 0) {
@@ -30,13 +32,13 @@ void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathw
    }
 }
 
-int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayCount, int metaboliteCount, bool* d_balancedMetabolites, int* d_inputCounts, int* d_outputCounts, int* h_inputCounts, int* h_outputCounts) {
+int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayStartIndex, int pathwayCount, int metaboliteCount, bool* d_balancedMetabolites, int* d_inputCounts, int* d_outputCounts, int* h_inputCounts, int* h_outputCounts) {
 
    int threads_per_count_block = 256;
    int blocks_per_grid = ceil(((float) metaboliteCount) / threads_per_count_block);
    computeMetaboliteInputOutputCounts << <blocks_per_grid, threads_per_count_block >> >
-           (d_metaboliteCoefficients, pathwayCount, metaboliteCount, d_balancedMetabolites,
-           d_inputCounts, d_outputCounts);
+           (d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount,
+           d_balancedMetabolites, d_inputCounts, d_outputCounts);
    int count_mem_size = metaboliteCount * sizeof (int);
    cudaMemcpy(h_inputCounts, d_inputCounts, count_mem_size, cudaMemcpyDeviceToHost);
    cudaMemcpy(h_outputCounts, d_outputCounts, count_mem_size, cudaMemcpyDeviceToHost);

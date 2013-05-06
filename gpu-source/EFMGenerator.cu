@@ -6,8 +6,9 @@ void generateEFMs() {
    int serial = 1;
    while (remainingMetabolites > 0) {
       // find metabolite to remove
-      int metabolite = getNextMetabolite(d_metaboliteCoefficients, pathwayCount, metaboliteCount,
-              d_balancedMetabolites, d_metaboliteInputPathwayCounts, d_metaboliteOutputPathwayCounts,
+      int metabolite = getNextMetabolite(d_metaboliteCoefficients, pathwayStartIndex,
+              pathwayCount, metaboliteCount, d_balancedMetabolites,
+              d_metaboliteInputPathwayCounts, d_metaboliteOutputPathwayCounts,
               h_metaboliteInputPathwayCounts, h_metaboliteOutputPathwayCounts);
       printf("%2d %2d %6s in=%2d out=%2d\n",serial++,metabolite, network.metabolites[metabolite].c_str(),h_metaboliteInputPathwayCounts[metabolite],h_metaboliteOutputPathwayCounts[metabolite]);
       //Copy the bit vectors from gpu to cpu
