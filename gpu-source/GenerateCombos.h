@@ -3,6 +3,6 @@
 
 #include "Setup.h"
 
-void generateCombinations(int numInputs, int numOutputs, int batch_number);
+int generateCombinations(int metabolite, int numberOfBins, int nextFreePathwayIndex);
 
 #endif

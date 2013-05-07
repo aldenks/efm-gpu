@@ -1,4 +1,6 @@
 #include "EFMGenerator.h"
+#include "SortPathways.h"
+#include "GenerateCombos.h"
 
 //Generates EFMs
 
@@ -18,11 +20,16 @@ void generateEFMs() {
       batchSize = BIN_MAX_ENTRIES / divisor; // int division
       //Call kernel to generate combinations
       int num_batches = (h_metaboliteOutputPathwayCounts[metabolite] / pathwayCount) + 1;
+      int nextFreePathwayIndex = pathwayStartIndex + pathwayCount;
+      int newPathwayCount = 0;
       for (int i = 0; i < num_batches; ++i) {
          dependencyCheck(h_metaboliteInputPathwayCounts[metabolite], h_metaboliteOutputPathwayCounts[metabolite], i);
+         newPathwayCount += generateCombinations(metabolite, h_metaboliteInputPathwayCounts[metabolite], circularIndex(nextFreePathwayIndex + newPathwayCount));
       }
-
+      pathwayStartIndex = circularIndex(pathwayStartIndex + h_metaboliteInputPathwayCounts[metabolite] + h_metaboliteOutputPathwayCounts[metabolite]);
+      pathwayCount += newPathwayCount - h_metaboliteInputPathwayCounts[metabolite] - h_metaboliteOutputPathwayCounts[metabolite];
       markMetaboliteBalanced(metabolite, d_balancedMetabolites);
       remainingMetabolites--;
+
    }
 }

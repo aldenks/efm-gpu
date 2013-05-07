@@ -5,14 +5,17 @@
 #include "Network.h"
 
 //Tolerence for positive zero
-#define ZERO 1e-10
+#define ZERO 1e-10f
 //Tolerence for negative zero
 #define NEG_ZERO -ZERO
 
 //Maximum number of pathways that can be stored in the memory
 #define MAX_PATHWAYS 1048576
 #define CIRCULAR_BUFFER_MASK 0XFFFFF
-#define circularIndex(index) (index & CIRCULAR_BUFFER_MASK)
+#define circularIndex(index) ((index) & CIRCULAR_BUFFER_MASK)
+
+
+#define MAX_THREADS_PER_BLOCK 1024
 
 // number of combinations tested per batch
 extern int batchSize;
