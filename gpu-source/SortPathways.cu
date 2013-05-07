@@ -132,7 +132,7 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
 
 __global__
 void checkSort(BinaryVector *reactions, float *metaboliteCoefficients, int bufferStart, int numPathways, int numMetabolites, int metaboliteToRemove, int *sorts) {
-   int tid = blockIdx.x + blockDim.x + threadIdx.x;
+   int tid = blockIdx.x * blockDim.x + threadIdx.x;
    if (tid < numPathways) {
       int startIndex = circularIndex(bufferStart + tid);
       if (metaboliteCoefficients[startIndex * numMetabolites + metaboliteToRemove] < NEG_ZERO) {
@@ -176,13 +176,13 @@ void sortInputsOutputs(int pathwayCounts, int metaboliteCount, int numInputs, in
    for (int i = pathwayStartIndex; i < pathwayStartIndex + pathwayCount; i++) {
       fprintf(stderr, "Pathway %i is %i\n", circularIndex(i), h_sorts[circularIndex(i)]);
    }
-
+/*
    for (int i = 0; i < MAX_PATHWAYS; ++i) {
       if (h_sorts[i] > -1) {
          fprintf(stderr, "Found something.");
       }
    }
-
+*/
    cudaFree(d_sorts);
    free(h_sorts);
 }
