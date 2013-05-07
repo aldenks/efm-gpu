@@ -5,7 +5,7 @@
 #include "Network.h"
 
 //Tolerence for positive zero
-#define ZERO 1e-10f
+#define ZERO 1e-5f
 //Tolerence for negative zero
 #define NEG_ZERO -ZERO
 
