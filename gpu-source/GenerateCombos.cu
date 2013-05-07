@@ -9,7 +9,7 @@ void scalePathway(float* result, float* p1, float* p2, float scale, int metaboli
 
 __global__
 void generateCombinations(int* bins, int* indicies, int inputIndex, int numberOfBins, int metabolite, int metaboliteCount, BinaryVector *reactions, float *metaboliteCoefficients){
-   int tid = blockIdx.x + blockDim.x + threadIdx.x;
+   int tid = blockIdx.x * blockDim.x + threadIdx.x;
    if(tid >= numberOfBins){
       return;
    }
@@ -27,9 +27,9 @@ void generateCombinations(int* bins, int* indicies, int inputIndex, int numberOf
       met1 = metaboliteCoefficients[metaboliteCount * inputIndex + metabolite];
       met2 = metaboliteCoefficients[metaboliteCount * outputIndex + metabolite];
       if(met1 < met2){
-         scalePathway(metaboliteCoefficients + metaboliteCount * writeIndex, metaboliteCoefficients + metaboliteCount * inputIndex, metaboliteCoefficients + metaboliteCount * outputIndex, met1/met2, metaboliteCount);
+         scalePathway(metaboliteCoefficients + metaboliteCount * writeIndex, metaboliteCoefficients + metaboliteCount * inputIndex, metaboliteCoefficients + metaboliteCount * outputIndex, -met1/met2, metaboliteCount);
       }else{
-         scalePathway(metaboliteCoefficients + metaboliteCount * writeIndex, metaboliteCoefficients + metaboliteCount * outputIndex, metaboliteCoefficients + metaboliteCount * inputIndex, met2/met1, metaboliteCount);
+         scalePathway(metaboliteCoefficients + metaboliteCount * writeIndex, metaboliteCoefficients + metaboliteCount * outputIndex, metaboliteCoefficients + metaboliteCount * inputIndex, -met2/met1, metaboliteCount);
       }
    }
 }
