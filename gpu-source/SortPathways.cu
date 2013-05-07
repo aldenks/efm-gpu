@@ -105,10 +105,10 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
 
       //Need to calculate start of this batch of outputs in circular buffer 
       int buffer_output_start = circularIndex(pathwayStartIndex + output_start);
-      bool is_unique_and_independent = true;
       for (int i = 0; i < batch_size && (output_start + i) < non_part_start; ++i) {
          output = reactions[circularIndex(buffer_output_start + i)];
          combo = input | output;
+         bool is_unique_and_independent = true;
 
          for (int j = 0; is_unique_and_independent && j < pathwayCounts; ++j) {
             if (j == tid) {
@@ -122,8 +122,7 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
             pathway = reactions[circularIndex(pathwayStartIndex + j)];
 
             if (pathway == combo) {
-               //TODO: how can we prevent duplicates?
-	      is_unique_and_independent = false; //Found a duplicate
+               is_unique_and_independent = false; //Found a duplicate
                break;
             }
 
