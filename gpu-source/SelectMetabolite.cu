@@ -43,14 +43,11 @@ int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayStartIndex, in
    cudaMemcpy(h_outputCounts, d_outputCounts, count_mem_size, cudaMemcpyDeviceToHost);
 
    // select the metabolite with the minimum product of inputs and outputs
-   int min_i = -1;
+   int min_i = 0;
    long min_product = LONG_MAX;
    for (int i = 0; i < metaboliteCount; i++) {
       if (h_inputCounts[i] == BALANCED_MARKER) {
          continue;
-      }
-      if (min_i == -1) {
-         min_i = i;
       }
       int product = h_inputCounts[i] * h_outputCounts[i];
       if (product < min_product) {

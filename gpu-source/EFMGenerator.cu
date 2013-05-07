@@ -17,16 +17,19 @@ void generateEFMs() {
       //Copy the bit vectors from gpu to cpu
       //Sort the bit vectors for inputs outputs and non-participating pathways
       sortInputsOutputs(h_metaboliteInputPathwayCounts[metabolite], h_metaboliteOutputPathwayCounts[metabolite], metabolite);
-      int divisor = h_metaboliteInputPathwayCounts[metabolite] > 0 ? h_metaboliteInputPathwayCounts[metabolite] : 1;
-      batchSize = BIN_MAX_ENTRIES / divisor; // int division
-      //Call kernel to generate combinations
+      int newPathwayCount = 0;
       int num_batches = (h_metaboliteOutputPathwayCounts[metabolite] / pathwayCount) + 1;
       int nextFreePathwayIndex = pathwayStartIndex + pathwayCount;
-      int newPathwayCount = 0;
-      printf("PathwayCount=%-5d PathwayStartIndex=%-5d NextFreeIndex=%-5d Batches=%-2d\n", pathwayCount, pathwayStartIndex, nextFreePathwayIndex, num_batches);
-      for (int i = 0; i < num_batches; ++i) {
-         dependencyCheck(h_metaboliteInputPathwayCounts[metabolite], h_metaboliteOutputPathwayCounts[metabolite], i);
-         newPathwayCount += generateCombinations(metabolite, h_metaboliteInputPathwayCounts[metabolite], circularIndex(nextFreePathwayIndex + newPathwayCount));
+      if (h_metaboliteInputPathwayCounts[metabolite] != 0 &&
+          h_metaboliteOutputPathwayCounts[metabolite] != 0) {
+         int divisor = h_metaboliteInputPathwayCounts[metabolite] > 0 ? h_metaboliteInputPathwayCounts[metabolite] : 1;
+         batchSize = BIN_MAX_ENTRIES / divisor; // int division
+         //Call kernel to generate combinations
+         printf("PathwayCount=%-5d PathwayStartIndex=%-5d NextFreeIndex=%-5d Batches=%-2d\n", pathwayCount, pathwayStartIndex, nextFreePathwayIndex, num_batches);
+         for (int i = 0; i < num_batches; ++i) {
+            dependencyCheck(h_metaboliteInputPathwayCounts[metabolite], h_metaboliteOutputPathwayCounts[metabolite], i);
+            newPathwayCount += generateCombinations(metabolite, h_metaboliteInputPathwayCounts[metabolite], circularIndex(nextFreePathwayIndex + newPathwayCount));
+         }
       }
       pathwayStartIndex = circularIndex(pathwayStartIndex + h_metaboliteInputPathwayCounts[metabolite] + h_metaboliteOutputPathwayCounts[metabolite]);
       pathwayCount += newPathwayCount - h_metaboliteInputPathwayCounts[metabolite] - h_metaboliteOutputPathwayCounts[metabolite];

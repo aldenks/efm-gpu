@@ -65,8 +65,7 @@ void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients, 
             //Skip this one
             start++;
             startIndex = circularIndex(start);
-         }
-         if (is_output_2) {
+         } else if (is_output_2) {
             //swap the two reactions
             BinaryVector temp = reactions[endIndex];
             reactions[endIndex] = reactions[startIndex];

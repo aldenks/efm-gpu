@@ -3,7 +3,12 @@
 __device__
 void scalePathway(float* result, float* p1, float* p2, float scale, int metaboliteCount){
    for(int i = 0; i < metaboliteCount; i++){
-      result[i] = p1[i] + p2[i] * scale;
+      float ans = p1[i] + p2[i] * scale;
+      if (NEG_ZERO < ans && ans < ZERO) {
+         result[i] = 0;
+      } else {
+         result[i] = ans;
+      }
    }
 }
 
@@ -26,11 +31,12 @@ void generateCombinations(int* bins, int* indicies, int inputIndex, int numberOf
       reactions[writeIndex] = inputReaction | reactions[outputIndex];
       met1 = metaboliteCoefficients[metaboliteCount * inputIndex + metabolite];
       met2 = metaboliteCoefficients[metaboliteCount * outputIndex + metabolite];
-      if(met1 < met2){
+      if(-met1 < met2){
          scalePathway(metaboliteCoefficients + metaboliteCount * writeIndex, metaboliteCoefficients + metaboliteCount * inputIndex, metaboliteCoefficients + metaboliteCount * outputIndex, -met1/met2, metaboliteCount);
       }else{
          scalePathway(metaboliteCoefficients + metaboliteCount * writeIndex, metaboliteCoefficients + metaboliteCount * outputIndex, metaboliteCoefficients + metaboliteCount * inputIndex, -met2/met1, metaboliteCount);
       }
+      metaboliteCoefficients[metaboliteCount * writeIndex + metabolite] = 0;
    }
 }
 
