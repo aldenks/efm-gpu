@@ -16,7 +16,7 @@ void generateEFMs() {
       printf("%2d %2d %6s in=%-2d out=%-2d combinations=%-10d\n", serial++, metabolite, network.metabolites[metabolite].c_str(), h_metaboliteInputPathwayCounts[metabolite], h_metaboliteOutputPathwayCounts[metabolite], h_metaboliteInputPathwayCounts[metabolite] * h_metaboliteOutputPathwayCounts[metabolite]);
       //Copy the bit vectors from gpu to cpu
       //Sort the bit vectors for inputs outputs and non-participating pathways
-      sortInputsOutputs(pathwayCount, metaboliteCount, h_metaboliteInputPathwayCounts[metabolite], h_metaboliteOutputPathwayCounts[metabolite], metabolite);
+      sortInputsOutputs(h_metaboliteInputPathwayCounts[metabolite], h_metaboliteOutputPathwayCounts[metabolite], metabolite);
       int divisor = h_metaboliteInputPathwayCounts[metabolite] > 0 ? h_metaboliteInputPathwayCounts[metabolite] : 1;
       batchSize = BIN_MAX_ENTRIES / divisor; // int division
       //Call kernel to generate combinations
