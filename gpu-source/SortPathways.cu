@@ -194,19 +194,19 @@ void sortInputsOutputs(int numInputs, int numOutputs, int metaboliteToRemove) {
    int *d_sorts = NULL;
    cudaMalloc((void **) &d_sorts, MAX_PATHWAYS * sizeof (int));
 
-   fprintf(stderr, "Before sort\n");
-   checkSorting(h_sorts, d_sorts, metaboliteToRemove);
+   //fprintf(stderr, "Before sort\n");
+   //checkSorting(h_sorts, d_sorts, metaboliteToRemove);
 
    sortInputPathways << < 1, 32 >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount, metaboliteToRemove);
 
-   fprintf(stderr, "Inputs sorted\n");
-   checkSorting(h_sorts, d_sorts, metaboliteToRemove);
+   //fprintf(stderr, "Inputs sorted\n");
+   //checkSorting(h_sorts, d_sorts, metaboliteToRemove);
 
    numBlocks = ((pathwayCount - numInputs) / MAX_THREADS_PER_BLOCK) + 1;
    sortOutputPathways << < 1, 32 >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex + numInputs, pathwayCount - numInputs, metaboliteCount, metaboliteToRemove);
 
-   fprintf(stderr, "Inputs and outputs sorted\n");
-   checkSorting(h_sorts, d_sorts, metaboliteToRemove);
+   //fprintf(stderr, "Inputs and outputs sorted\n");
+   //checkSorting(h_sorts, d_sorts, metaboliteToRemove);
 
    cudaFree(d_sorts);
    free(h_sorts);
