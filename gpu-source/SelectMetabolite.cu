@@ -16,9 +16,9 @@ void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathw
    int end_i = pathwayStartIndex + pathwayCount;
    for (int p = pathwayStartIndex; p < end_i; p++) {
       float coeff = metaboliteCoefficients[ circularIndex(p * metaboliteCount + m) ];
-      if (coeff > 0) {
+      if (coeff > ZERO) {
          outputCount++;
-      } else if (coeff < 0) {
+      } else if (coeff < NEG_ZERO) {
          inputCount++;
       }
    }
