@@ -103,9 +103,11 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
       BinaryVector input = reactions[circularIndex(pathwayStartIndex + tid)];
       BinaryVector output, combo, pathway;
 
+      //Need to calculate start of this batch of outputs in circular buffer 
+      int buffer_output_start = circularIndex(pathwayStartIndex + output_start);
       bool is_unique_and_independent = true;
-      for (int i = 0; i < batch_size && output_start + i < non_part_start; ++i) {
-         output = reactions[circularIndex(output_start + i)];
+      for (int i = 0; i < batch_size && (output_start + i) < non_part_start; ++i) {
+         output = reactions[circularIndex(buffer_output_start + i)];
          combo = input | output;
 
          for (int j = 0; is_unique_and_independent && j < pathwayCounts; ++j) {
@@ -117,7 +119,7 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
                continue; //skip this output
             }
 
-            pathway = reactions[circularIndex(j)];
+            pathway = reactions[circularIndex(pathwayStartIndex + j)];
 
             if (pathway == combo) {
                //TODO: how can we prevent duplicates?
@@ -130,7 +132,7 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
 
          if (is_unique_and_independent) {
             count++;
-            bins[num_inputs * (count) + tid] = circularIndex(output_start + i);
+            bins[num_inputs * (count) + tid] = circularIndex(buffer_output_start + i);
          }
       }
       /*
@@ -216,7 +218,7 @@ void dependencyCheck(int numInputs, int numOutputs, int batch_number) {
    int numBlocks = (numInputs / MAX_THREADS_PER_BLOCK) + 1;
    printf("dependencyCheck: numInputs=%d, numOutputs=%d, batch_number=%d, numBlocks=%d, batchSize=%d\n", numInputs, numOutputs, batch_number, numBlocks, batchSize);
    dependencyCheck << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_combinationBins, batchSize, numInputs,
-           pathwayStartIndex + numInputs + (batch_number * batchSize), //start of next batch of outputs
-           pathwayStartIndex + numInputs + numOutputs, //start of non-participating
+           numInputs + (batch_number * batchSize), //start of next batch of outputs
+           numInputs + numOutputs, //start of non-participating
            pathwayCount, pathwayStartIndex);
 }
