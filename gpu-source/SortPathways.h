@@ -4,8 +4,8 @@
 //TODO: define CPU code the calls kernel
 #include "Setup.h"
 
-void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts,
-        BinaryVector *d_reactions, int metaboliteCount, int numInputs,
+void sortInputsOutputs(int pathwayCounts,
+        int metaboliteCount, int numInputs,
         int numOutputs, int metaboliteToRemove);
 void dependencyCheck(int numInputs, int numOutputs, int batch_number);
 

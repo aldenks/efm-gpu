@@ -57,6 +57,7 @@ void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients, 
          if (is_output_1) {
             //Skip this one
             start++;
+                        startIndex = circularIndex(start);
          }
          if (is_output_2) {
             //swap the two reactions
@@ -81,20 +82,22 @@ void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients, 
          } else {
             //Not an output, don't care
             end--;
+                        endIndex = circularIndex(end);
          }
       }
    }
 }
 
 __global__
-void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num_inputs, int output_start, int non_part_start, int pathwayCounts) {
+void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num_inputs, int output_start, int non_part_start, int pathwayCounts, int pathwayStartIndex) {
    int tid = blockIdx.x * blockDim.x + threadIdx.x;
    int count = 0;
    if (tid < num_inputs) {
-      BinaryVector input = reactions[circularIndex(tid)];
+      bins[tid] = 0;
+      BinaryVector input = reactions[circularIndex(pathwayStartIndex + tid)];
       BinaryVector output, combo, pathway;
-      bool is_unique_and_independent = false;
-      for (int i = 0; i < batch_size; ++i) {
+      bool is_unique_and_independent = true;
+      for (int i = 0; i < batch_size && output_start + i < non_part_start; ++i) {
          output = reactions[circularIndex(output_start + i)];
          combo = input | output;
          for (int j = 0; is_unique_and_independent && j < pathwayCounts; ++j) {
@@ -113,16 +116,17 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
             is_unique_and_independent = ((combo & pathway) != pathway);
          }
          if (is_unique_and_independent) {
-            bins[batch_size * (count + 1) + tid] = i;
             count++;
+            bins[num_inputs * (count) + tid] = i;
+            
          }
       }
-
+      /*
       //Assumes first item is 0 to start
-      if (output_start == num_inputs) {
+      if (circularIndex(output_start) == circularIndex(pathwayStartIndex + num_inputs)) {
          bins[tid] = 0;
-      }
-      bins[tid] += count;
+      }*/
+      bins[tid] = count;
    }
 }
 
@@ -141,13 +145,14 @@ void checkSort(BinaryVector *reactions, float *metaboliteCoefficients, int buffe
    }
 }
 
-void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts, BinaryVector *d_reactions, int metaboliteCount, int numInputs, int numOutputs, int metaboliteToRemove) {
+void sortInputsOutputs(int pathwayCounts, int metaboliteCount, int numInputs, int numOutputs, int metaboliteToRemove) {
    //call the kernel on inputs and outputs
+   printf("sortInputsOutputs: pathwayCount=%d, metaboliteCount=%d, numInputs=%d, numbOutputs=%d, metabolite=%d\n",pathwayCounts, metaboliteCount, numInputs, numOutputs, metaboliteToRemove);
    int numBlocks = (pathwayCounts / MAX_THREADS_PER_BLOCK) + 1;
-   sortInputPathways << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_reactions, d_metaboliteCoefficients, pathwayStartIndex, pathwayCounts, pathwayCounts, metaboliteCount, metaboliteToRemove);
+   sortInputPathways << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex, pathwayCounts, pathwayCounts, metaboliteCount, metaboliteToRemove);
 
    numBlocks = ((pathwayCounts - numInputs) / MAX_THREADS_PER_BLOCK) + 1;
-   sortOutputPathways << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_reactions, d_metaboliteCoefficients, pathwayStartIndex + numInputs, pathwayCounts - numInputs, pathwayCounts, metaboliteCount, metaboliteToRemove);
+   sortOutputPathways << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex + numInputs, pathwayCounts - numInputs, pathwayCounts, metaboliteCount, metaboliteToRemove);
 
    int *h_sorts = (int *) malloc(sizeof (int) * MAX_PATHWAYS);
    for (int i = 0; i < MAX_PATHWAYS; ++i) {
@@ -156,12 +161,17 @@ void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts, Binar
 
    int *d_sorts = NULL;
    cudaMalloc((void **) &d_sorts, MAX_PATHWAYS * sizeof (int));
-   cudaMemcpy(d_sorts, h_sorts, sizeof (int)*MAX_PATHWAYS, cudaMemcpyHostToDevice);
 
+   cudaError error;
+   error = cudaMemcpy(d_sorts, h_sorts, sizeof (int)*MAX_PATHWAYS, cudaMemcpyHostToDevice);
+   if (error != cudaSuccess)
+      fprintf(stderr, "Error in copying for check sort HTD\n");
    numBlocks = (pathwayCount / MAX_THREADS_PER_BLOCK) + 1;
-   checkSort << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_reactions, d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount, metaboliteToRemove, d_sorts);
+   checkSort << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount, metaboliteToRemove, d_sorts);
 
-   cudaMemcpy(h_sorts, d_sorts, sizeof (int)*MAX_PATHWAYS, cudaMemcpyDeviceToHost);
+   error = cudaMemcpy(h_sorts, d_sorts, sizeof (int)*MAX_PATHWAYS, cudaMemcpyDeviceToHost);
+   if (error != cudaSuccess)
+      fprintf(stderr, "Error in copying for check sort DTH\n");
 
    for (int i = pathwayStartIndex; i < pathwayStartIndex + pathwayCount; i++) {
       fprintf(stderr, "Pathway %i is %i\n", circularIndex(i), h_sorts[circularIndex(i)]);
@@ -179,8 +189,9 @@ void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts, Binar
 
 void dependencyCheck(int numInputs, int numOutputs, int batch_number) {
    int numBlocks = (numInputs / MAX_THREADS_PER_BLOCK) + 1;
+   printf("dependencyCheck: numInputs=%d, numOutputs=%d, batch_number=%d, numBlocks=%d, batchSize=%d\n", numInputs, numOutputs, batch_number, numBlocks, batchSize);
    dependencyCheck << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_combinationBins, batchSize, numInputs,
            pathwayStartIndex + numInputs + (batch_number * batchSize), //start of next batch of outputs
            pathwayStartIndex + numInputs + numOutputs, //start of non-participating
-           pathwayCount);
+           pathwayCount, pathwayStartIndex);
 }

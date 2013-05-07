@@ -35,15 +35,17 @@ void generateCombinations(int* bins, int* indicies, int inputIndex, int numberOf
 }
 
 int generateCombinations(int metabolite, int numberOfBins, int nextFreePathwayIndex){
-   cudaMemcpy(h_newPathwayBinCounts, d_combinationBins, numberOfBins * sizeof(int), cudaMemcpyDeviceToHost);
-   h_newPathwayWriteIndices[0] = nextFreePathwayIndex;
-   int newComboCount = h_newPathwayBinCounts[0];
+   cudaMemcpy(h_combinationBinCounts, d_combinationBins, numberOfBins * sizeof(int), cudaMemcpyDeviceToHost);
+   h_combinationWriteIndices[0] = nextFreePathwayIndex;
+   int newComboCount = h_combinationBinCounts[0];
+   printf("%i -- %i combos\n", 0, h_combinationBinCounts[0]);
    for(int i = 1; i < numberOfBins; i++){
-      h_newPathwayWriteIndices[i] = h_newPathwayWriteIndices[i - 1] + h_newPathwayBinCounts[i - 1];
-      newComboCount += h_newPathwayBinCounts[i];
+      printf("%i -- %i combos\n", i, h_combinationBinCounts[i]);
+      h_combinationWriteIndices[i] = h_combinationWriteIndices[i - 1] + h_combinationBinCounts[i - 1];
+      newComboCount += h_combinationBinCounts[i];
    }
-   cudaMemcpy(d_newPathwayWriteIndices, h_newPathwayWriteIndices, numberOfBins * sizeof(int), cudaMemcpyHostToDevice);
+   cudaMemcpy(d_combinationWriteIndices, h_combinationWriteIndices, numberOfBins * sizeof(int), cudaMemcpyHostToDevice);
    int numBlocks = (numberOfBins / MAX_THREADS_PER_BLOCK) + 1;
-   generateCombinations << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_combinationBins, d_newPathwayWriteIndices, pathwayStartIndex, numberOfBins, metabolite, metaboliteCount, d_binaryVectors, d_metaboliteCoefficients);
+   generateCombinations << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_combinationBins, d_combinationWriteIndices, pathwayStartIndex, numberOfBins, metabolite, metaboliteCount, d_binaryVectors, d_metaboliteCoefficients);
    return newComboCount;
 }

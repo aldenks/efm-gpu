@@ -13,9 +13,9 @@
 #define MAX_PATHWAYS 1048576
 #define CIRCULAR_BUFFER_MASK 0XFFFFF
 #define circularIndex(index) ((index) & CIRCULAR_BUFFER_MASK)
-
-
 #define MAX_THREADS_PER_BLOCK 1024
+//#define BIN_MAX_ENTRIES 13107200 // 50mb of 4 byte ints
+#define BIN_MAX_ENTRIES 100000 // 50mb of 4 byte ints
 
 // number of combinations tested per batch
 extern int batchSize;
@@ -31,8 +31,6 @@ extern BinaryVector* d_binaryVectors;
 //Device data for metabolite coefficients
 //2D array. Each row represents to the coefficients for each metabolite in a pathway
 extern float* d_metaboliteCoefficients;
-//Device data for combinations
-extern int* d_combinationBins;
 //Device flags for balanced metabolites. A true means the metabolite is balanced
 extern bool* d_balancedMetabolites;
 //Device data for count of input pathways for each metabolite
@@ -56,14 +54,13 @@ extern int pathwayStartIndex;
 
 // Bins for each thread's newly found independent pathways
 //  bins are organized in column major for memory coalescing
-#define BIN_MAX_ENTRIES 13107200 // 50mb of 4 byte ints
-extern int *d_newPathwayBins;
-extern int *d_newPathwayBinCounts;
-extern int *h_newPathwayBinCounts;
+//Device data for combinations
+extern int* d_combinationBins;
+extern int *h_combinationBinCounts;
 // Indices into the binaryVectors & metaboliteCoefficients for
 //  threads to begin writing out to
-extern int *d_newPathwayWriteIndices;
-extern int *h_newPathwayWriteIndices;
+extern int *d_combinationWriteIndices;
+extern int *h_combinationWriteIndices;
 
 //Initializes the network and gpu memory
 //Ret: returns true if memory was succesfully allocated, false otherwise
