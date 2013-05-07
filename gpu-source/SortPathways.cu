@@ -11,30 +11,30 @@ void sortInputPathways(BinaryVector *reactions, float *metaboliteCoefficients, i
 
       //While the pointers do not overlap
       while (start < end) {
-         bool is_input_1 = metaboliteCoefficients[start * numberOfMetabolites + metaboliteToRemove] < NEG_ZERO;
-         bool is_input_2 = metaboliteCoefficients[end * numberOfMetabolites + metaboliteToRemove] < NEG_ZERO;
+	bool is_input_1 = metaboliteCoefficients[circularIndex(start) * numberOfMetabolites + metaboliteToRemove] < NEG_ZERO;
+	bool is_input_2 = metaboliteCoefficients[circularIndex(end) * numberOfMetabolites + metaboliteToRemove] < NEG_ZERO;
          if (is_input_1) {
             //Skip this one
             start++;
          } else if (is_input_2) {
             //swap the two reactions
-            BinaryVector temp = reactions[end];
-            reactions[end] = reactions[start];
-            reactions[start] = temp;
+	   BinaryVector temp = reactions[circularIndex(end)];
+	   reactions[circularIndex(end)] = reactions[circularIndex(start)];
+	   reactions[circularIndex(start)] = temp;
 
             //swap the two metaboliteCoefficients for pathways
             float tempCoefficient;
             for (int i = 0; i < numberOfMetabolites; ++i) {
-               tempCoefficient = metaboliteCoefficients[end * numberOfMetabolites + i];
-               metaboliteCoefficients[end * numberOfMetabolites + i] = metaboliteCoefficients[start * numberOfMetabolites + i];
-               metaboliteCoefficients[start * numberOfMetabolites + i] = tempCoefficient;
+	      tempCoefficient = metaboliteCoefficients[circularIndex(end) * numberOfMetabolites + i];
+	      metaboliteCoefficients[circularIndex(end) * numberOfMetabolites + i] = metaboliteCoefficients[circularIndex(start) * numberOfMetabolites + i];
+	      metaboliteCoefficients[circularIndex(start) * numberOfMetabolites + i] = tempCoefficient;
             }
             //move forward
             start++;
-            end++;
+            end--;
          } else {
             //Not an input, don't care
-            end++;
+            end--;
          }
       }
    }
@@ -180,7 +180,7 @@ void sortInputsOutputs(float *d_metaboliteCoefficients, int pathwayCounts, Binar
 void dependencyCheck(int numInputs, int numOutputs, int batch_number) {
    int numBlocks = (numInputs / MAX_THREADS_PER_BLOCK) + 1;
    dependencyCheck << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_combinationBins, batchSize, numInputs,
-           numInputs + (batch_number * batchSize), //start of next batch of outputs
-           numOutputs, //start of non-participating
+           pathwayStartIndex + numInputs + (batch_number * batchSize), //start of next batch of outputs
+           pathwayStartIndex + numInputs + numOutputs, //start of non-participating
            pathwayCount);
 }
