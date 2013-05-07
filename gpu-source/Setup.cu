@@ -10,8 +10,6 @@ int batchSize;
 //Device data for metabolite coefficients
 //2D array. Each row represents to the coefficients for each metabolite in a pathway
 float* d_metaboliteCoefficients;
-//Device data for combinations
-int* d_combinationBins;
 //Device flags for balanced metabolites. A true means the metabolite is balanced
 bool* d_balancedMetabolites;
 //Device data for count of input pathways for each metabolite
@@ -35,13 +33,13 @@ int pathwayStartIndex;
 
 // Bins for each thread's newly found independent pathways
 //  bins are organized in column major for memory coalescing
-int *d_newPathwayBins;
-int *d_newPathwayBinCounts;
-int *h_newPathwayBinCounts;
+//Device data for combinations
+int* d_combinationBins;
+int *h_combinationBinCounts;
 // Indices into the binaryVectors & metaboliteCoefficients for
 //  threads to begin writing out to
-int *d_newPathwayWriteIndices;
-int *h_newPathwayWriteIndices;
+int *d_combinationWriteIndices;
+int *h_combinationWriteIndices;
 
 bool allocateMemory() {
    cudaError error;
@@ -106,44 +104,42 @@ bool allocateMemory() {
    }
 
    // Bins
-   d_newPathwayBins = NULL;
-   error = cudaMalloc((void**) &d_newPathwayBins, BIN_MAX_ENTRIES * sizeof (int));
+   d_combinationBins = NULL;
+   error = cudaMalloc((void**) &d_combinationBins, BIN_MAX_ENTRIES * sizeof (int));
    if (error != cudaSuccess) {
-      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayBins\n");
-      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
-      return false;
-   }
-
-   // Bin counts. We will rarely need MAX_PATHWAYS bins, but it is the theoretical max
-   d_newPathwayBinCounts = NULL;
-   error = cudaMalloc((void**) &d_newPathwayBinCounts, MAX_PATHWAYS * sizeof (int));
-   if (error != cudaSuccess) {
-      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayBinCounts\n");
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_combinationBins\n");
       fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
       return false;
    }
 
    // Host Bin Counts
-   h_newPathwayBinCounts = (int*) malloc(MAX_PATHWAYS * sizeof (int));
-   if (!h_newPathwayBinCounts) {
-      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_newPathwayBinCounts\n");
+   h_combinationBinCounts = (int*) malloc(MAX_PATHWAYS * sizeof (int));
+   if (!h_combinationBinCounts) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_combinationBinCounts\n");
       fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
       return false;
    }
 
    // New pathway write indices
-   d_newPathwayWriteIndices = NULL;
-   error = cudaMalloc((void**) &d_newPathwayWriteIndices, MAX_PATHWAYS * sizeof (int));
+   d_combinationWriteIndices = NULL;
+   error = cudaMalloc((void**) &d_combinationWriteIndices, MAX_PATHWAYS * sizeof (int));
    if (error != cudaSuccess) {
-      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_newPathwayWriteIndices\n");
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for d_combinationWriteIndices\n");
       fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
       return false;
    }
 
    // Host Bin Counts
-   h_newPathwayWriteIndices = (int*) malloc(MAX_PATHWAYS * sizeof (int));
-   if (!h_newPathwayWriteIndices) {
-      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_newPathwayWriteIndices\n");
+   h_combinationWriteIndices = (int*) malloc(MAX_PATHWAYS * sizeof (int));
+   if (!h_combinationWriteIndices) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_combinationWriteIndices\n");
+      return false;
+   }
+
+   // Host Bin Counts
+   h_combinationBinCounts = (int*) malloc(MAX_PATHWAYS * sizeof (int));
+   if (!h_combinationBinCounts) {
+      fprintf(stderr, "Setup.cu:allocateMemory() Unable to allocate memory for h_combinationBinCounts\n");
       return false;
    }
 
@@ -220,9 +216,6 @@ void freeResources() {
    if (d_metaboliteCoefficients) {
       cudaFree(d_metaboliteCoefficients);
    }
-   if (d_combinationBins) {
-      cudaFree(d_combinationBins);
-   }
    if (d_balancedMetabolites) {
       cudaFree(d_balancedMetabolites);
    }
@@ -238,19 +231,16 @@ void freeResources() {
    if (h_metaboliteOutputPathwayCounts) {
       free(h_metaboliteOutputPathwayCounts);
    }
-   if (d_newPathwayBins) {
-      cudaFree(d_newPathwayBins);
+   if (d_combinationBins) {
+      cudaFree(d_combinationBins);
    }
-   if (d_newPathwayBinCounts) {
-      cudaFree(d_newPathwayBinCounts);
+   if (h_combinationBinCounts) {
+      free(h_combinationBinCounts);
    }
-   if (h_newPathwayBinCounts) {
-      free(h_newPathwayBinCounts);
+   if (d_combinationWriteIndices) {
+      cudaFree(d_combinationWriteIndices);
    }
-   if (d_newPathwayWriteIndices) {
-      cudaFree(d_newPathwayWriteIndices);
-   }
-   if (h_newPathwayWriteIndices) {
-      free(h_newPathwayWriteIndices);
+   if (h_combinationWriteIndices) {
+      free(h_combinationWriteIndices);
    }
 }
