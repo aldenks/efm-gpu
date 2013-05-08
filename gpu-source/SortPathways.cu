@@ -185,8 +185,7 @@ void checkSorting(int *h_sorts, int *d_sorts, int metaboliteToRemove){
 
 void sortInputsOutputs(int numInputs, int numOutputs, int metaboliteToRemove) {
    //call the kernel on inputs and outputs
-   printf("sortInputsOutputs: pathwayCount=%d, metaboliteCount=%d, numInputs=%d, numOutputs=%d, metabolite=%d\n",pathwayCount, metaboliteCount, numInputs, numOutputs, metaboliteToRemove);
-   int numBlocks = (pathwayCount / MAX_THREADS_PER_BLOCK) + 1;
+   //printf("sortInputsOutputs: pathwayCount=%d, metaboliteCount=%d, numInputs=%d, numOutputs=%d, metabolite=%d\n",pathwayCount, metaboliteCount, numInputs, numOutputs, metaboliteToRemove);
 
    int *h_sorts = (int *) malloc(sizeof (int) * MAX_PATHWAYS);
    int *d_sorts = NULL;
@@ -200,7 +199,6 @@ void sortInputsOutputs(int numInputs, int numOutputs, int metaboliteToRemove) {
    //fprintf(stderr, "Inputs sorted\n");
    //checkSorting(h_sorts, d_sorts, metaboliteToRemove);
 
-   numBlocks = ((pathwayCount - numInputs) / MAX_THREADS_PER_BLOCK) + 1;
    sortOutputPathways << < 1, 32 >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex + numInputs, pathwayCount - numInputs, metaboliteCount, metaboliteToRemove);
 
    //fprintf(stderr, "Inputs and outputs sorted\n");
@@ -214,7 +212,7 @@ void sortInputsOutputs(int numInputs, int numOutputs, int metaboliteToRemove) {
 
 void dependencyCheck(int numInputs, int numOutputs, int batch_number) {
    int numBlocks = (numInputs / MAX_THREADS_PER_BLOCK) + 1;
-   printf("dependencyCheck: numInputs=%d, numOutputs=%d, batch_number=%d, numBlocks=%d, batchSize=%d\n", numInputs, numOutputs, batch_number, numBlocks, batchSize);
+   //printf("dependencyCheck: numInputs=%d, numOutputs=%d, batch_number=%d, numBlocks=%d, batchSize=%d\n", numInputs, numOutputs, batch_number, numBlocks, batchSize);
    dependencyCheck << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_combinationBins, batchSize, numInputs,
            numInputs + (batch_number * batchSize), //start of next batch of outputs
            numInputs + numOutputs, //start of non-participating
