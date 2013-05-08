@@ -177,9 +177,8 @@ First, some high level pseudo code. More Detail on each step below.
 3. Batch the dependency checks [ EFMGenerator.{ cu|h } ]
     Due to memory constraints, we batch our combo generation and dependency checking.Batches break up the output pathways into chunks and process one chunk with an input per batch.
 
-3a. Generate Combinations [ GenerateCombos.{ cu|h } ]
-
-    // TODO
+3a. Generate Combinations [SortPathways.h, SortPathways.cu]
+    All the possible input output combinations are generated and after dependency test only independent combinations are stored.
 
 3b. Dependency Checking : [SortPathways.h, SortPathways.cu]
 
@@ -253,13 +252,35 @@ First, some high level pseudo code. More Detail on each step below.
      is stored twice in the array and we must represent that.
 
 
-3c. Update metabolite coefficients
+3c. Update metabolite coefficients [GenerateCombos.h, GenerateCombos.cu]
 
-  // TODO
+  Updates metabolite coefficients of generated independent combinations.
+  Takes the bins array and generate combinations of independent pathways in the
+  bins. A thread is assigned to an input and that input is combined with outputs
+  specified in the corresponding bin.
+ 
+  ASSUMPTIONS: 1) The number of threads is exactly numInputs and will be treated as
+                  such.
+
+  Process / Algorithm:
+    generateCombinations() CPU function
+     - Computes the starting index of new combinations for each bin
+     - Calls generateCombinations() kernel to generate combinations
+     - Returns total number of new combinations generated
+
+
+    generateCombinations() kernel
+     - inputIndex := index of the input in circular buffer corresponding to current thread
+     - input := input pahtway in circular buffer
+     - writeIndex := index of new combination in circular buffer corresponding to current thread
+     - for each ouput in a bin
+       - outputIndex := index of the output in bin corresponding to current thread
+       - binaryReactions[writeIndex] := input | binaryReactions[outputIndex]
+       - compute scaling factor for the new combination
+       - compute metabolite coefficients for the new pathway
 
 3d. Add independent pathways to set of all pathways
-
-  // TODO
+  New combinations are stored after the non-participating pathways and pathway count is updated to incporate independent pathways to the set of all pathways.
 
 3e. Remove inputs and outputs
   Because input and output pathways are sorted to the beginning, we can "delete" them in constant time by adding the counts of input and output pathways to pathwayStartIndex.
