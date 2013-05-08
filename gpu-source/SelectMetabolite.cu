@@ -3,6 +3,8 @@
 
 #define BALANCED_MARKER -1
 
+// Kernel with one thread per metabolite. Sums input/output counts and writes
+// them to the metabolite's index in inputCounts and outputCounts.
 __global__
 void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathwayStartIndex, int pathwayCount, int metaboliteCount, bool* balancedMetabolites, int* inputCounts, int* outputCounts) {
 
@@ -32,6 +34,9 @@ void computeMetaboliteInputOutputCounts(float* metaboliteCoefficients, int pathw
    }
 }
 
+// Returns the index of the next metabolite to remove.
+// Side effect: h_{input|output}Counts contain the correct counts
+//  for each metabolite.
 int getNextMetabolite(float* d_metaboliteCoefficients, int pathwayStartIndex, int pathwayCount, int metaboliteCount, bool* d_balancedMetabolites, int* d_inputCounts, int* d_outputCounts, int* h_inputCounts, int* h_outputCounts) {
 
    int threads_per_count_block = 256;
