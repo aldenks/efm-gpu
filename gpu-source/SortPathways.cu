@@ -13,10 +13,13 @@ void sortInputPathways(BinaryVector *reactions, float *metaboliteCoefficients, i
 
       //While the pointers do not overlap
       while (start < end) {
+
+	//Recall that a metabolite is an input to a reaction if its input is negative
 	bool is_input_1 = metaboliteCoefficients[circularIndex(start) * numberOfMetabolites + metaboliteToRemove] < NEG_ZERO;
 	bool is_input_2 = metaboliteCoefficients[circularIndex(end) * numberOfMetabolites + metaboliteToRemove] < NEG_ZERO;
+
          if (is_input_1) {
-            //Skip this one
+            //Skip this one since it is in the right bucket
             start++;
          } else if (is_input_2) {
             //swap the two reactions
@@ -31,19 +34,23 @@ void sortInputPathways(BinaryVector *reactions, float *metaboliteCoefficients, i
 	      metaboliteCoefficients[circularIndex(end) * numberOfMetabolites + i] = metaboliteCoefficients[circularIndex(start) * numberOfMetabolites + i];
 	      metaboliteCoefficients[circularIndex(start) * numberOfMetabolites + i] = tempCoefficient;
             }
+
             //move forward
             start++;
             end--;
          } else {
-            //Not an input, don't care
+            //Not an input, already in the right bucket
             end--;
          }
       }
    }
 }
 
+//Assumes that sortInputPathways has already been called
 __global__
-void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients, int output_start, int numToSort, int numberOfMetabolites, int metaboliteToRemove) {
+void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients, 
+			int output_start, int numToSort, int numberOfMetabolites, 
+			int metaboliteToRemove) {
    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
    if (tid == 0) {
@@ -57,12 +64,13 @@ void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients, 
 
       //While the pointers do not overlap
       while (start < end) {
+	//Recall that a metabolite is an input to a reaction if its input is positive
          bool is_output_1 = metaboliteCoefficients[startIndex * numberOfMetabolites +
                  metaboliteToRemove] > ZERO;
          bool is_output_2 = metaboliteCoefficients[endIndex * numberOfMetabolites +
                  metaboliteToRemove] > ZERO;
          if (is_output_1) {
-            //Skip this one
+            //Skip this one since it is already sorted
             start++;
             startIndex = circularIndex(start);
          } else if (is_output_2) {
@@ -86,7 +94,7 @@ void sortOutputPathways(BinaryVector *reactions, float *metaboliteCoefficients, 
             startIndex = circularIndex(start);
             endIndex = circularIndex(end);
          } else {
-            //Not an output, don't care
+            //Not an output, so already sorted
             end--;
             endIndex = circularIndex(end);
          }
@@ -104,50 +112,56 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
 
       //Need to calculate start of this batch of outputs in circular buffer 
       int buffer_output_start = circularIndex(pathwayStartIndex + output_start);
+
+      //Keep generating combos until either
+      //  1) batch is finished OR
+      //  2) reached the non participating pathways (end of output)
       for (int i = 0; i < batch_size && (output_start + i) < non_part_start; ++i) {
          output = reactions[circularIndex(buffer_output_start + i)];
          combo = input | output;
          bool is_unique_and_independent = true;
 
          for (int j = 0; is_unique_and_independent && j < pathwayCounts; ++j) {
+	   //If INDEX of this pathway is the same as INDEX of input, skip
             if (j == tid) {
-               continue; //skip this input
+               continue; 
             }
 
+	   //If INDEX of this pathway is the same as INDEX of output, skip
             if (j == output_start + i) {
-               continue; //skip this output
+               continue;
             }
 
             pathway = reactions[circularIndex(pathwayStartIndex + j)];
 
             if (pathway == combo) {
-               is_unique_and_independent = false; //Found a duplicate
+	      //Found a duplicate.
+	      //NOTE: The pathway that is already in the array is considered
+	      //      the "original" in this case.
+               is_unique_and_independent = false; 
                break;
             }
-
+	    
+	    //Check if combo is not dependent on pathway
             is_unique_and_independent = ((combo & pathway) != pathway);
          }
 
+	 //If unique and independent, store the output index into the bin
          if (is_unique_and_independent) {
             count++;
             bins[num_inputs * (count) + tid] = circularIndex(buffer_output_start + i);
          }
       }
-      /*
-      //Assumes first item is 0 to start
-      if (circularIndex(output_start) == circularIndex(pathwayStartIndex + num_inputs)) {
-         bins[tid] = 0;
-      }*/
+
       bins[tid] = count;
    }
 }
 
 __global__
-void checkSort(float *metaboliteCoefficients, int pathwayStartIndex, int numPathways, int numMetabolites, int metaboliteToRemove, int *sorts) {
+void checkSort(float *metaboliteCoefficients, int pathwayStartIndex, int numPathways, 
+	       int numMetabolites, int metaboliteToRemove, int *sorts) {
    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-   //if (tid < numPathways) {
    if(tid == 0){
-     //int startIndex = circularIndex(pathwayStartIndex + tid);
      for(int i = 0; i < numPathways; ++i){
        int startIndex = circularIndex(pathwayStartIndex + i);
        if (metaboliteCoefficients[startIndex * numMetabolites + metaboliteToRemove] < NEG_ZERO) {
