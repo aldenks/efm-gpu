@@ -1,0 +1,265 @@
+Elementary Flux Mode Analysis on the GPU
+Ehsan Ullah, Diogenes Nunez, and Alden Keefe Sampson
+
+Program Design
+--------------
+
+== Memory & Data ==
+-------------------
+We keep as much data on the GPU as possible to avoid overheads due to copying data back and forth.
+
+// TODO: explain how BinaryVectors and metabolite represent pathways.
+
+Primary pieces of data in memory
+  Two parallel circular buffers of pathway data:
+    1. 1D Array of BinaryVectors
+    2. 2D array of Metabolite coefficients
+      If we have m metabolites and n pathways, the metabolite
+        coefficients look like this:
+            m1   m2   m3   m4   ...  mr  ...   mm
+          +----+----+----+----+----+----+----+----+
+      r1  |    |    |    |    |    | 0  |    |    |
+          +----+----+----+----+----+----+----+----+
+      r2  |    |    |    |    |    | 2  |    |    |
+          +----+----+----+----+----+----+----+----+
+      r3  |    |    |    |    |    | -1 |    |    |
+          +----+----+----+----+----+----+----+----+
+      r4  |    |    |    |    |    | -3 |    |    |
+          +----+----+----+----+----+----+----+----+
+      ... |    |    |    |    |    |    |    |    |
+          +----+----+----+----+----+----+----+----+
+      rn  |    |    |    |    |    | 0  |    |    |
+          +----+----+----+----+----+----+----+----+
+
+    The macro circularIndex(i) takes an abstracted infinite index and
+      maps it into the underlying array. We maintain a pathwayStartIndex
+      which points to the start of the pathways in collection and
+      a pathwayCount to know how many we have.
+
+  Bins
+    Space for each thread to store new, independent combinations.
+    Combos here are just represented with the int index of the output pathway,
+      the input pathway is implicitly known (each bin is for one input pathway).
+    Bins are cleared out and added to pathways after each batch.
+    The first index in each bin holds the count of combos in the bin.
+    Each bin is of batchSize, and there is one bin per input pathway.
+    Bins are arranged out in column major order in a large 1D array:
+
+        0    1    2    3    4    5    6   .. (n_in)-1
+      +----+----+----+----+----+----+----+----+----+
+      | 3  | 1  | 0  | 0  | 2  | 0  | 0  |    | 2  | ------> counts
+      +----+----+----+----+----+----+----+----+----+ --+
+      | 15 | 12 |    |    | 13 |    |    |    | 21 |   |
+      +----+----+----+----+----+----+----+----+----+   |
+      | 17 |    |    |    | 15 |    |    |    | 26 |   |
+      +----+----+----+----+----+----+----+----+----+   |
+      | 26 |    |    |    |    |    |    |    |    |   +--> output_indices
+      +----+----+----+----+----+----+----+----+----+   |
+      |    |    |    |    |    |    |    |    |    |   |
+      +----+----+----+----+----+----+----+----+----+   |
+      |    |    |    |    |    |    |    |    |    |   |
+      +----+----+----+----+----+----+----+----+----+ --+
+
+
+
+== Algorithm ==
+---------------
+
+First, some high level pseudo code. More Detail on each step below.
+
+1. Find next metabolite
+2. Bucket sorting inputs, outputs
+3. Batch the dependency checks
+  3a. Generate combo
+  3b. Dependency check
+  3c. Update metabolite coefficients
+  3d. Add independent pathways to set of all pathways
+  3e. Remove inputs and outputs
+
+
+1. Find next metabolite [ SelectMetabolite.{ cu|h } ]
+  The next metabolite to chosen by a heuristic which attempts to keep the number of pathways from combinatorially exploding. We chose the metabolite with the minimum product of its number of inputs and outputs.
+  This is done in two parts:
+  GPU: One thread per metabolite calculates the count of inputs and outputs and stores those counts at its index in d_metaboliteInputPathwayCounts and d_metaboliteOutputPathwayCounts.
+  CPU: that data is copied to the CPU and the CPU picks the metabolite with the minimum product.
+
+2. Bucket sorting inputs and output pathways [SortPathways.h, SortPathways.cu]
+
+  Takes the circular buffer of reactions and metabolites d_reactions
+  and sorts them into buckets of inputs, outputs, and non-participating
+  according to a chosen metabolite.
+
+  So an array like this, full of pathways
+
+  +------------------------------------------------------------------+
+  |                        all pathways                              |
+  +------------------------------------------------------------------+
+
+  is sorted into these three buckets with respect to one metabolite.
+
+  +------------------------------------------------------------------+
+  |    inputs        |     outputs        |     non-participating    |
+  +------------------------------------------------------------------+
+
+  Also takes the metabolite coefficients 2D array and sorts each row
+  into the same buckets. Asumming we have m metabolites and n
+  pathways, we have
+
+        m1   m2   m3   m4   ...  mr  ...   mm
+      +----+----+----+----+----+----+----+----+
+  r1  |    |    |    |    |    | 0  |    |    |
+      +----+----+----+----+----+----+----+----+
+  r2  |    |    |    |    |    | 2  |    |    |
+      +----+----+----+----+----+----+----+----+
+  r3  |    |    |    |    |    | -1 |    |    |
+      +----+----+----+----+----+----+----+----+
+  r4  |    |    |    |    |    | -3 |    |    |
+      +----+----+----+----+----+----+----+----+
+  ... |    |    |    |    |    |    |    |    |
+      +----+----+----+----+----+----+----+----+
+  rn  |    |    |    |    |    | 0  |    |    |
+      +----+----+----+----+----+----+----+----+
+
+  become this after sorting
+
+        m1   m2   m3   m4   ...  mr  ...   mm
+      +----+----+----+----+----+----+----+----+  ---+
+  r4  |    |    |    |    |    | -3 |    |    |     |
+      +----+----+----+----+----+----+----+----+     +--> inputs
+  r3  |    |    |    |    |    | -1 |    |    |     |
+      +----+----+----+----+----+----+----+----+  ---+
+  r2  |    |    |    |    |    | 2  |    |    |  ------> outputs
+      +----+----+----+----+----+----+----+----+  ---+
+  r1  |    |    |    |    |    | 0  |    |    |     |
+      +----+----+----+----+----+----+----+----+     |
+  ... |    |    |    |    |    |    |    |    |     +---> non-part
+      +----+----+----+----+----+----+----+----+     |
+  rn  |    |    |    |    |    | 0  |    |    |     |
+      +----+----+----+----+----+----+----+----+  ---+
+
+  ASSUMPTIONS: 1) Number of inputs and outputs correspond to the given metabolite.
+               2) All indices passed into the kernel ARE with respect to the circular
+                  buffer.
+
+  GUARANTEES:  Both d_binaryVectors and d_metaboliteCoefficients are sorted into
+               input, output, non-participating buckets with each index into
+               d_binaryVectors corresponding to the same row in d_metaboliteCoefficients.
+
+  Process / Algorithm:
+    Given the metabolite to remove, mr, we know:
+       1) mr is an input to a pathway if its metabolite coefficient in that pathway
+          is negative
+       2) mr is an output to a pathway if its metabolite coefficient in that pathway
+          is positive
+
+
+    So we launch two kernels in the following order
+       - one that sorts all pathways into inputs and others        (sortInputPathways)
+       - one that sorts non-input pathways into outputs and others (sortOutputPathways)
+
+    Both kernels use a single thread to perform bucket sorting from a given starting
+    point and for a given number of pathways.
+
+  Debugging:
+    To help with debugging, there is a third (private) function called checkSorting()
+    that will print to stderr all the pathways and whether they are
+       1) input, represented by -1
+       2) output, represented by 1
+       3) non-participating, represented by 0
+    Note that this kernel is NOT parallelized. It can be, but there was no demand
+    for that much speedup.
+
+  Future Work:
+    Try a different sort, preferably one that can follow a reduction model to take
+    advantage of the massive parallelization.
+
+
+3. Batch the dependency checks [ EFMGenerator.{ cu|h } ]
+    Due to memory constraints, we batch our combo generation and dependency checking.Batches break up the output pathways into chunks and process one chunk with an input per batch.
+
+3a. Generate Combinations [ GenerateCombos.{ cu|h } ]
+
+    // TODO
+
+3b. Dependency Checking : [SortPathways.h, SortPathways.cu]
+
+  Takes the array of binary vectors ordered into inputs, outputs,
+  and non-participating. Generates combinations by combining one input
+  from inputs with one output from outputs and checks dependency against
+  all binary vectors in this array, save the input and output used to create
+  the combo.
+
+  +------------------------------------------------------------------+
+  |    inputs        |     outputs        |     non-participating    |
+  +------------------------------------------------------------------+
+
+  Definition: Pathway p1 is dependent on pathway p2 iff
+                1) p1 == p2 OR
+                2) every bit set in p2 is also set in p1
+
+  Independent combos are written in bins, where each column is a bin for a particular
+  input. The first row has the number of output indices listed in the bin.
+  The rest of the rows contain output indices. Below we have a sample output bin
+  when processing n_in inputs.
+
+        0    1    2    3    4    5    6   .. (n_in)-1
+      +----+----+----+----+----+----+----+----+----+
+      | 3  | 1  | 0  | 0  | 2  | 0  | 0  |    | 2  | ------> counts
+      +----+----+----+----+----+----+----+----+----+ --+
+      | 15 | 12 |    |    | 13 |    |    |    | 21 |   |
+      +----+----+----+----+----+----+----+----+----+   |
+      | 17 |    |    |    | 15 |    |    |    | 26 |   |
+      +----+----+----+----+----+----+----+----+----+   |
+      | 26 |    |    |    |    |    |    |    |    |   +--> output_indices
+      +----+----+----+----+----+----+----+----+----+   |
+      |    |    |    |    |    |    |    |    |    |   |
+      +----+----+----+----+----+----+----+----+----+   |
+      |    |    |    |    |    |    |    |    |    |   |
+      +----+----+----+----+----+----+----+----+----+ --+
+
+  ASSUMPTIONS: 1) The bin is considered zeroed out at the beginning of
+                  every call to this function. Any previous input is not guaranteed
+                  to still be there when this function returns.
+               2) The number of columns is exactly numInputs and will be treated as
+                  such.
+               3) The number of rows is exactly batchSize and will be treated as such.
+               4) All indices passed into the kernel do NOT consider the circular
+                  buffer except for the start of pathways, pathwayStartIndex. Instead,
+                  they correspond to an "infinite" length array. In other words, they
+                  do not consider buffer at all.
+
+  GUARANTEES:  1) This function does NOT write back into the d_binaryVectors array.
+               2) The indices stored in the bins correspond to the circular buffer.
+
+  Process / Algorithm:
+     dependencyCheck() calls a single kernel of the same name with as many threads
+     as there are inputs and a batch size of batchSize. Each thread does the following:
+
+     - count of independent combos := 0
+     - input := input reaction corresponding to thread ID
+     - for each output in the batch :
+       - combo := input | output
+       - for each pathway in the binary vector array :
+         - if index of pathway is index of input, skip
+         - if index of pathway is index of output, skip
+         - if pathway is combo, not independent
+         - check dependency of combo on pathway
+       - if independent :
+         - increment count of independent combos
+         - write index of output into the bin
+
+     Note that we skip 2 pathways, one that shares the same INDEX as the input, and one
+     that shares the same INDEX as the output. A combo can be dependent if the same input
+     is stored twice in the array and we must represent that.
+
+
+3c. Update metabolite coefficients
+
+  // TODO
+
+3d. Add independent pathways to set of all pathways
+
+  // TODO
+
+3e. Remove inputs and outputs
+  Because input and output pathways are sorted to the beginning, we can "delete" them in constant time by adding the counts of input and output pathways to pathwayStartIndex.
