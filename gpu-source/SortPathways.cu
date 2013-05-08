@@ -119,15 +119,17 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
       for (int i = 0; i < batch_size && (output_start + i) < non_part_start; ++i) {
          output = reactions[circularIndex(buffer_output_start + i)];
          combo = input | output;
+
+	 // We are trying to prove that combo is NOT independent
          bool is_unique_and_independent = true;
 
          for (int j = 0; is_unique_and_independent && j < pathwayCounts; ++j) {
-	   //If INDEX of this pathway is the same as INDEX of input, skip
+	   //If INDEX of this pathway is the same as INDEX of input, skip it
             if (j == tid) {
                continue; 
             }
 
-	   //If INDEX of this pathway is the same as INDEX of output, skip
+	   //If INDEX of this pathway is the same as INDEX of output, skip it
             if (j == output_start + i) {
                continue;
             }
@@ -157,6 +159,15 @@ void dependencyCheck(BinaryVector *reactions, int *bins, int batch_size, int num
    }
 }
 
+// Takes the metabolite coefficients, number of pathways to consider, starting index in
+// the circular buffer, number of metabolites, the metabolite we are considering, and
+// an array of ints.
+
+// Writes the following to the sorts array in the index corresponding to a pathway in
+// metaboliteCoefficients:
+//    - -1 if the metabolite is an input to that pathway
+//    - 1 if the metabolite is an output to that pathway
+//    - 0 otherwise (non-participating)
 __global__
 void checkSort(float *metaboliteCoefficients, int pathwayStartIndex, int numPathways, 
 	       int numMetabolites, int metaboliteToRemove, int *sorts) {
@@ -175,59 +186,88 @@ void checkSort(float *metaboliteCoefficients, int pathwayStartIndex, int numPath
    }
 }
 
-void checkSorting(int *h_sorts, int *d_sorts, int metaboliteToRemove){
+//Takes the metabolite we wish to check
+
+//Prints every pathway considered in this iteration and whether they are
+//an input, output, or non-participating.
+
+//NOTE: This is used to ensure the buckets were properly made after sorting.
+void checkSorting(int metaboliteToRemove){
+   int *h_sorts = (int *) malloc(sizeof (int) * MAX_PATHWAYS);
+
+   int *d_sorts = NULL;
+   cudaError error;
+   error = cudaMalloc((void **) &d_sorts, MAX_PATHWAYS * sizeof (int));
+   if (error != cudaSuccess) {
+      fprintf(stderr, "SortPathways.cu:checkSorting() Unable to allocate memory for d_sorts\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
+
+      free(h_sorts);
+      return;
+   }
+
+   //Given default input to allow others to do some other checks
    for (int i = 0; i < MAX_PATHWAYS; ++i) {
       h_sorts[i] = -2;
    }
 
-   cudaError error;
-   error = cudaMemcpy(d_sorts, h_sorts, sizeof (int)*MAX_PATHWAYS, cudaMemcpyHostToDevice);
-   if (error != cudaSuccess)
-      fprintf(stderr, "Error in copying for check sort HTD\n");
 
+   error = cudaMemcpy(d_sorts, h_sorts, sizeof (int)*MAX_PATHWAYS, cudaMemcpyHostToDevice);
+   if (error != cudaSuccess) {
+      fprintf(stderr, "SortPathways.cu:checkSorting() Unable to copy h_sorts over to GPU\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
+
+      cudaFree(d_sorts);
+      free(h_sorts);
+      return;
+   }
+
+   // Dispatched for greater parallel exploitation, but kernel is currently a single thread
    int numBlocks = (pathwayCount / MAX_THREADS_PER_BLOCK) + 1;
    checkSort << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount, metaboliteToRemove, d_sorts);
 
    error = cudaMemcpy(h_sorts, d_sorts, sizeof (int)*MAX_PATHWAYS, cudaMemcpyDeviceToHost);
-   if (error != cudaSuccess)
-      fprintf(stderr, "Error in copying for check sort DTH\n");
+   if (error != cudaSuccess) {
+      fprintf(stderr, "SortPathways.cu:checkSorting() Unable to copy d_sorts over to CPU\n");
+      fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", __FILE__, __LINE__, cudaGetErrorString(error));
+
+      cudaFree(d_sorts);
+      free(h_sorts);
+      return;
+   }
 
    for (int i = pathwayStartIndex; i < pathwayStartIndex + pathwayCount; i++) {
       fprintf(stderr, "Pathway %i is %i\n", circularIndex(i), h_sorts[circularIndex(i)]);
    }
-}
-
-void sortInputsOutputs(int numInputs, int numOutputs, int metaboliteToRemove) {
-   //call the kernel on inputs and outputs
-   //printf("sortInputsOutputs: pathwayCount=%d, metaboliteCount=%d, numInputs=%d, numOutputs=%d, metabolite=%d\n",pathwayCount, metaboliteCount, numInputs, numOutputs, metaboliteToRemove);
-
-   int *h_sorts = (int *) malloc(sizeof (int) * MAX_PATHWAYS);
-   int *d_sorts = NULL;
-   cudaMalloc((void **) &d_sorts, MAX_PATHWAYS * sizeof (int));
-
-   //fprintf(stderr, "Before sort\n");
-   //checkSorting(h_sorts, d_sorts, metaboliteToRemove);
-
-   sortInputPathways << < 1, 32 >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex, pathwayCount, metaboliteCount, metaboliteToRemove);
-
-   //fprintf(stderr, "Inputs sorted\n");
-   //checkSorting(h_sorts, d_sorts, metaboliteToRemove);
-
-   sortOutputPathways << < 1, 32 >> > (d_binaryVectors, d_metaboliteCoefficients, pathwayStartIndex + numInputs, pathwayCount - numInputs, metaboliteCount, metaboliteToRemove);
-
-   //fprintf(stderr, "Inputs and outputs sorted\n");
-   //checkSorting(h_sorts, d_sorts, metaboliteToRemove);
 
    cudaFree(d_sorts);
    free(h_sorts);
 }
 
+// Calls the two sorting kernels, sortInputPathways() and sortOutputPathways()
+void sortInputsOutputs(int numInputs, int numOutputs, int metaboliteToRemove) {
+   //printf("sortInputsOutputs: pathwayCount=%d, metaboliteCount=%d, numInputs=%d, numOutputs=%d, metabolite=%d\n",pathwayCount, metaboliteCount, numInputs, numOutputs, metaboliteToRemove);
 
+  // Sort all pathways into input bucket and other bucket.
+  // NOTE: We only use one thread, so we dedicate one warp to it.
+   sortInputPathways << < 1, 32 >> > (d_binaryVectors, d_metaboliteCoefficients, 
+				      pathwayStartIndex, //Index to start sorting
+				      pathwayCount,      //Number of pathways to sort
+				      metaboliteCount, metaboliteToRemove);
+
+  // Sort all non-input pathways into output bucket and non-participating bucket.
+  // NOTE: We only use one thread, so we dedicate one warp to it.
+   sortOutputPathways << < 1, 32 >> > (d_binaryVectors, d_metaboliteCoefficients, 
+				       pathwayStartIndex + numInputs, // Start sorting after inputs
+				       pathwayCount - numInputs,  // Number of pathways to sort
+				       metaboliteCount, metaboliteToRemove);
+}
 
 void dependencyCheck(int numInputs, int numOutputs, int batch_number) {
    int numBlocks = (numInputs / MAX_THREADS_PER_BLOCK) + 1;
    //printf("dependencyCheck: numInputs=%d, numOutputs=%d, batch_number=%d, numBlocks=%d, batchSize=%d\n", numInputs, numOutputs, batch_number, numBlocks, batchSize);
-   dependencyCheck << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_combinationBins, batchSize, numInputs,
+   dependencyCheck << < numBlocks, MAX_THREADS_PER_BLOCK >> > (d_binaryVectors, d_combinationBins, batchSize, 
+           numInputs, //number of inputs
            numInputs + (batch_number * batchSize), //start of next batch of outputs
            numInputs + numOutputs, //start of non-participating
            pathwayCount, pathwayStartIndex);
