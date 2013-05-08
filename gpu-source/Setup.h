@@ -15,7 +15,7 @@
 #define circularIndex(index) ((index) & CIRCULAR_BUFFER_MASK)
 #define MAX_THREADS_PER_BLOCK 1024
 //#define BIN_MAX_ENTRIES 13107200 // 50mb of 4 byte ints
-#define BIN_MAX_ENTRIES 100000 // 50mb of 4 byte ints
+#define BIN_MAX_ENTRIES 1000000 // 50mb of 4 byte ints
 
 // number of combinations tested per batch
 extern int batchSize;
