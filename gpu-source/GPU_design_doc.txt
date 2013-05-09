@@ -11,9 +11,39 @@ We keep as much data on the GPU as possible to avoid overheads due to copying da
 // TODO: explain how BinaryVectors and metabolite represent pathways.
 
 Primary pieces of data in memory
-  Two parallel circular buffers of pathway data:
+  Every pathway in the network has two important pieces of information:
+    1. the reactions that are used in the pathway
+    2. the equations of every reaction in that pathway
+
+  We represent the entire network in two parallel circular buffers of pathway data:
     1. 1D Array of BinaryVectors
-    2. 2D array of Metabolite coefficients
+
+      A BinaryVector is an unsigned long, so 64 bits. This was chosen to simplify the problem
+      for this first implementation. This means we have a hard limit of 64 reactions in a network.
+      We use a bit in the BinaryVector to represent a reaction, starting at the least significant
+      bit. If bit i is set, then reaction i is active in that pathway.
+
+      For example, the below BinaryVector shows that this pathway used reactions 0, 4, 9, and 62.
+
+      This "structure" allows us to check for dependency with two bitwise operations.
+
+      01000000 00000000 00000000 00000000 00000000 00000000 00000010 00010001  - BinaryVector
+                                                               ...98 76543210  - Indices
+
+      Currently, we have a hard limit on the number of pathways we can hold at any given time.
+      This constant is defined in Setup.h as MAX_PATHWAYS. Exceeding this number at any time
+      during execution will result in undefined behavior and output. As of the time this algorithm
+      was implemented, there is no known way of identified an upper bound on the number of pathways
+      that can be generated throughout the procedure. Until such a bound has been found, we must
+      set a manual hard limit.
+
+    2. 2D array of Metabolite coefficients represented as floats
+
+      Each row corresponds to a pathway and each column corresponds to a metabolite.
+      Each pathway consumes and produces metabolites and can be represented as an equation.
+      Cell (i, j) represents the coefficient for metabolite j in pathway i. A negative coefficient
+      represents an input, positive represents output. 0 means that metabolite is not used at all.
+
       If we have m metabolites and n pathways, the metabolite
         coefficients look like this:
             m1   m2   m3   m4   ...  mr  ...   mm
@@ -31,10 +61,25 @@ Primary pieces of data in memory
       rn  |    |    |    |    |    | 0  |    |    |
           +----+----+----+----+----+----+----+----+
 
+      We can see that metabolite mr is an input to r3 and r4, output to r2, and does not
+      participate in r1 and rn.
+
+      Just like the array of BinaryVectors, we have a hard limit of MAX_PATHWAYS rows for the
+      same reasons as before. The number of metabolites is fixed with respect to the network, so
+      we do not have to worry about the number of columns.
+
     The macro circularIndex(i) takes an abstracted infinite index and
       maps it into the underlying array. We maintain a pathwayStartIndex
       which points to the start of the pathways in collection and
       a pathwayCount to know how many we have.
+
+    To allow for fast indexing into the buffer, we made the buffer's length a power of 2. With this,
+    we can use a bitwise and with a mask to allow for faster indexing than a modulus. The length of
+    the buffer is MAX_PATHWAYS, which is made to be a power of 2.
+
+    NOTE: If MAX_PATHWAYS must be changed,
+          1) it must remain a power of 2 for fast indexing
+          2) CIRCULAR_BUFFER_MASK must be updated to reflect that
 
   Bins
     Space for each thread to store new, independent combinations.
@@ -60,6 +105,15 @@ Primary pieces of data in memory
       |    |    |    |    |    |    |    |    |    |   |
       +----+----+----+----+----+----+----+----+----+ --+
 
+   For simplicty, we assumed a hard limit for the size of the entire 1D array.
+   Just as with the BinaryVector array and the metabolite coefficients, we set
+   a hard limit, seen in Setup.h as BIN_MAX_ENTRIES. Like before, since there is
+   no upper bound to the number of pathways that can exist as the procedure goes
+   on, we cannot know the maximum number of input pathways, output pathways, or
+   combinations that can be generated at any given time. Therefore, we set this
+   hard limit.
+
+   BIN_MAX_ENTRIES can be changed to reflect domain knowledge or GPU hardware limits.
 
 
 == Algorithm ==
