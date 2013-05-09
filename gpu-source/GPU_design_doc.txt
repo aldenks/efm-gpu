@@ -8,8 +8,6 @@ Program Design
 -------------------
 We keep as much data on the GPU as possible to avoid overheads due to copying data back and forth.
 
-// TODO: explain how BinaryVectors and metabolite represent pathways.
-
 Primary pieces of data in memory
   Every pathway in the network has two important pieces of information:
     1. the reactions that are used in the pathway
@@ -88,7 +86,7 @@ Primary pieces of data in memory
     Bins are cleared out and added to pathways after each batch.
     The first index in each bin holds the count of combos in the bin.
     Each bin is of batchSize, and there is one bin per input pathway.
-    Bins are arranged out in column major order in a large 1D array:
+    Bins are arranged in column major order in a large 1D array:
 
         0    1    2    3    4    5    6   .. (n_in)-1
       +----+----+----+----+----+----+----+----+----+
@@ -312,7 +310,7 @@ First, some high level pseudo code. More Detail on each step below.
   Takes the bins array and generate combinations of independent pathways in the
   bins. A thread is assigned to an input and that input is combined with outputs
   specified in the corresponding bin.
- 
+
   ASSUMPTIONS: 1) The number of threads is exactly numInputs and will be treated as
                   such.
 
@@ -334,7 +332,7 @@ First, some high level pseudo code. More Detail on each step below.
        - compute metabolite coefficients for the new pathway
 
 3d. Add independent pathways to set of all pathways
-  New combinations are stored after the non-participating pathways and pathway count is updated to incporate independent pathways to the set of all pathways.
+  New combinations are flushed from the bins after each batch and appended to the circular buffer after the non-participating pathways and pathway count is updated to incporate independent pathways to the set of all pathways.
 
 3e. Remove inputs and outputs
   Because input and output pathways are sorted to the beginning, we can "delete" them in constant time by adding the counts of input and output pathways to pathwayStartIndex.
