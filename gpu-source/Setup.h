@@ -21,7 +21,7 @@
 extern int batchSize;
 
 //Binary Vector Datatype
-typedef unsigned long BinaryVector;
+typedef uint64_t BinaryVector;
 
 //Metabolic network
 extern Network network;

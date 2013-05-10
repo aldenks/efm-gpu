@@ -149,7 +149,8 @@ bool allocateMemory() {
 //Generates bit packed representation of reactions
 
 BinaryVector packReaction(int reaction) {
-   return 1 << reaction;
+   BinaryVector bv = 1;
+   return bv << reaction;
 }
 
 //Initializes the network and gpu memory
