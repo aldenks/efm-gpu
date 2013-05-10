@@ -20,7 +20,7 @@ void generateEFMs() {
       //Variable storing count for new combinations
       int newPathwayCount = 0;
       //Number of batches for dependency checking
-      int num_batches = ((h_metaboliteOutputPathwayCounts[metabolite] - 1) / pathwayCount) + 1;
+
       //Index in pathway buffers where new combinations are stored
       int nextFreePathwayIndex = circularIndex(pathwayStartIndex + pathwayCount);
 
@@ -29,7 +29,7 @@ void generateEFMs() {
          //Prevent division by 0
          int divisor = h_metaboliteInputPathwayCounts[metabolite] > 0 ? h_metaboliteInputPathwayCounts[metabolite] : 1;
          batchSize = BIN_MAX_ENTRIES / divisor; // int division
-
+	 int num_batches = ((h_metaboliteOutputPathwayCounts[metabolite] - 1) / batchSize) + 1;
 
          printf("PathwayCount=%-5d PathwayStartIndex=%-5d NextFreeIndex=%-5d Batches=%-2d\n", pathwayCount, pathwayStartIndex, nextFreePathwayIndex, num_batches);
 
@@ -50,7 +50,7 @@ void generateEFMs() {
       markMetaboliteBalanced(metabolite, d_balancedMetabolites);
       remainingMetabolites--;
 
-      printf("NewPathwayCount=%-5d\n", newPathwayCount);
+      printf("NewPathwayCount=%-5d PathwayCount=%-5d\n", newPathwayCount, pathwayCount);
       getchar();
    }
 }
