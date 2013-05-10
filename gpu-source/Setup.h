@@ -2,6 +2,7 @@
 #define	SETUP_H
 
 #include <cuda.h>
+#include <stdint.h>
 #include "Network.h"
 
 //Tolerence for positive zero
@@ -10,12 +11,12 @@
 #define NEG_ZERO -ZERO
 
 //Maximum number of pathways that can be stored in the memory
-#define MAX_PATHWAYS 1048576
-#define CIRCULAR_BUFFER_MASK 0XFFFFF
+#define MAX_PATHWAYS 2097152
+#define CIRCULAR_BUFFER_MASK 0X1FFFFF
 #define circularIndex(index) ((index) & CIRCULAR_BUFFER_MASK)
 #define MAX_THREADS_PER_BLOCK 1024
 //#define BIN_MAX_ENTRIES 13107200 // 50mb of 4 byte ints
-#define BIN_MAX_ENTRIES 1000000 // 50mb of 4 byte ints
+#define BIN_MAX_ENTRIES 2000000 // 50mb of 4 byte ints
 
 // number of combinations tested per batch
 extern int batchSize;
@@ -68,5 +69,6 @@ bool setup();
 //Frees the allocated memory
 void freeResources();
 
+void debugPathways();
 
 #endif	/* SETUP_H */
